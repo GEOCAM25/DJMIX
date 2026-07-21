@@ -55,7 +55,7 @@ actualiza el link en vivo (GitHub Pages) automáticamente.
 - [ ] Modo V-Tuber / Avatar DJ (MediaPipe Face Mesh; avatar en canvas reactivo al máster)
 
 ## ⏳ Automatización, Macros y Control Remoto
-- [ ] Motor de temas/skins dinámicos (variables CSS + selector desde JSON: Oscuro Pro, Anime, B/N)
+- [x] Motor de temas/skins dinámicos (variables CSS + selector: Oscuro Pro, Anime, B/N, Club Neón)
 - [ ] Creador de Macros no-code (encadenar acciones con tiempos; guardar en IndexedDB)
 - [ ] Auto-Slicer de samples (detección de transitorios → 8–16 slices → pads)
 - [ ] Companion App / control remoto (WebRTC/WebSocket para tablet/celular)

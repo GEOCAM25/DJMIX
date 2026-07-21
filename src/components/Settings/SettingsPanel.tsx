@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useStore } from '../../state/store';
 import { getStorageEstimate } from '../../storage/db';
 import { BackupSection } from '../Backup/BackupSection';
+import { THEMES } from '../../theme/themes';
 
 /**
  * Ajustes: claves API (opcionales) y uso de almacenamiento local.
@@ -10,6 +11,8 @@ import { BackupSection } from '../Backup/BackupSection';
 export function SettingsPanel({ onClose }: { onClose: () => void }) {
   const settings = useStore((s) => s.settings);
   const saveApiKeys = useStore((s) => s.saveApiKeys);
+  const theme = useStore((s) => s.theme);
+  const setTheme = useStore((s) => s.setTheme);
   const [ytKey, setYtKey] = useState(settings.youtubeApiKey);
   const [aiKey, setAiKey] = useState(settings.aiApiKey);
   const [usage, setUsage] = useState({ usage: 0, quota: 0 });
@@ -34,6 +37,26 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
         onClick={(e) => e.stopPropagation()}
       >
         <h3>Ajustes</h3>
+
+        <div className="field">
+          <span>Tema / Skin</span>
+          <div className="row" style={{ flexWrap: 'wrap', gap: 8 }}>
+            {THEMES.map((t) => (
+              <button
+                key={t.id}
+                className={theme === t.id ? 'active' : ''}
+                onClick={() => setTheme(t.id)}
+                style={{ display: 'flex', alignItems: 'center', gap: 7 }}
+              >
+                <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                  <i style={{ width: 11, height: 11, borderRadius: '50%', background: t.vars['--accent-a'] }} />
+                  <i style={{ width: 11, height: 11, borderRadius: '50%', background: t.vars['--accent-b'], marginLeft: -3 }} />
+                </span>
+                {t.name}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <label className="field">
           <span>YouTube Data API Key (opcional — habilita el buscador)</span>

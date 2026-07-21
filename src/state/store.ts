@@ -7,6 +7,7 @@ import { extractVideoId, searchYouTube } from '../media/youtube';
 import { buildStemsZip, downloadBlob, type Stem } from '../media/exportProject';
 import { exportBackupBlob, exportBackup, parseBackupFile, importBackup } from '../storage/backup';
 import { connectDrive, driveUpload, driveList, driveDownload, type DriveFile } from '../cloud/googleDrive';
+import { applyTheme, DEFAULT_THEME_ID } from '../theme/themes';
 import { detectBpm } from '../analysis/bpm';
 import { detectKey } from '../analysis/key';
 import { computeSmartWaveform } from '../analysis/smartWaveform';
@@ -123,8 +124,12 @@ interface StoreState {
   driveToken: string | null;
   driveFiles: DriveFile[];
 
+  // Tema / skin activo
+  theme: string;
+
   // ── Ciclo de vida ─────────────────────────────────────────────────────
   init: () => Promise<void>;
+  setTheme: (id: string) => void;
 
   // ── Importación / carga ───────────────────────────────────────────────
   importFiles: (files: File[]) => Promise<void>;
@@ -233,6 +238,7 @@ export const useStore = create<StoreState>((set, get) => ({
   settings: { youtubeApiKey: '', aiApiKey: '' },
   driveToken: null,
   driveFiles: [],
+  theme: DEFAULT_THEME_ID,
 
   async init() {
     if (get().started) return;
@@ -273,6 +279,13 @@ export const useStore = create<StoreState>((set, get) => ({
     }
     await get().refreshCueDevices();
 
+    // ── Restaurar tema/skin ────────────────────────────────────────────────
+    const savedTheme = await getSetting<string>('theme');
+    if (savedTheme) {
+      applyTheme(savedTheme);
+      set({ theme: savedTheme });
+    }
+
     await Promise.all([get().refreshLibrary(), get().refreshMixes()]);
 
     // Bucle de actualización de posiciones (≈30 fps) para la UI.
@@ -306,6 +319,12 @@ export const useStore = create<StoreState>((set, get) => ({
       requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
+  },
+
+  setTheme(id) {
+    applyTheme(id);
+    void setSetting('theme', id);
+    set({ theme: id });
   },
 
   async importFiles(files) {
