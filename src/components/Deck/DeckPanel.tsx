@@ -1,0 +1,110 @@
+import { useStore } from '../../state/store';
+import type { DeckId } from '../../audio/types';
+import { Fader } from '../ui/Fader';
+import { Waveform } from './Waveform';
+
+interface DeckPanelProps {
+  id: DeckId;
+}
+
+function formatTime(sec: number): string {
+  if (!isFinite(sec) || sec < 0) sec = 0;
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+/**
+ * Panel de un Deck (A o B): forma de onda, transporte (Play/Cue/Sync),
+ * fader de pitch/tempo y contenedor del reproductor de YouTube.
+ *
+ * Importante: el <div id="yt-deck-A/B"> SIEMPRE está en el DOM (aunque oculto)
+ * porque la IFrame API de YouTube necesita el elemento para montar el iframe.
+ */
+export function DeckPanel({ id }: DeckPanelProps) {
+  const deck = useStore((s) => s.decks[id]);
+  const togglePlay = useStore((s) => s.togglePlay);
+  const cue = useStore((s) => s.cue);
+  const setTempo = useStore((s) => s.setTempo);
+  const seek = useStore((s) => s.seek);
+  const addCue = useStore((s) => s.addCue);
+  const jumpToCue = useStore((s) => s.jumpToCue);
+  const syncToOther = useStore((s) => s.syncToOther);
+
+  const color = id === 'A' ? 'var(--accent-a)' : 'var(--accent-b)';
+  const isYoutube = deck.engine === 'youtube';
+  const effectiveBpm = deck.bpm ? (deck.bpm * (1 + deck.tempo / 100)).toFixed(1) : '—';
+
+  return (
+    <div className={`panel deck deck-${id}`}>
+      <div className="deck-head">
+        <div className="deck-title" style={{ color }}>
+          {id} · {deck.title}
+        </div>
+        <div className="chip">{isYoutube ? 'YouTube' : 'Local'}</div>
+      </div>
+
+      <div className="deck-meta">
+        <span className="chip">BPM {effectiveBpm}</span>
+        <span className="chip">Tono {deck.camelotKey ?? '—'}</span>
+        <span className="chip">Pitch {deck.tempo >= 0 ? '+' : ''}{deck.tempo.toFixed(1)}%</span>
+      </div>
+
+      {/* Reproductor de YouTube (oculto si el deck es local) */}
+      <div className={`yt-frame${isYoutube ? '' : ' hidden'}`}>
+        <div id={`yt-deck-${id}`} />
+      </div>
+
+      {!isYoutube && (
+        <Waveform
+          peaks={deck.peaks}
+          position={deck.position}
+          duration={deck.duration}
+          cues={deck.cues}
+          color={color}
+          onSeek={(sec) => seek(id, sec)}
+        />
+      )}
+
+      <div className="time">
+        {formatTime(deck.position)} / {formatTime(deck.duration)}
+      </div>
+
+      <div className="transport">
+        <button onClick={() => cue(id)} title="Cue">
+          ◆ Cue
+        </button>
+        <button className={deck.playing ? 'active' : 'primary'} onClick={() => togglePlay(id)}>
+          {deck.playing ? '❚❚ Pause' : '▶ Play'}
+        </button>
+        <button onClick={() => syncToOther(id)} disabled={!deck.bpm} title="Igualar BPM al otro deck">
+          ⟲ Sync
+        </button>
+      </div>
+
+      {!isYoutube && (
+        <div className="transport">
+          <button className="mini-btn" onClick={() => addCue(id)}>
+            + Hot Cue
+          </button>
+          {deck.cues.slice(0, 4).map((_, i) => (
+            <button key={i} className="mini-btn" onClick={() => jumpToCue(id, i)}>
+              {i + 1}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div style={{ marginTop: 12 }}>
+        <Fader
+          label={`Tempo ${deck.tempo >= 0 ? '+' : ''}${deck.tempo.toFixed(1)}%`}
+          value={deck.tempo}
+          min={-8}
+          max={8}
+          step={0.1}
+          onChange={(v) => setTempo(id, v)}
+        />
+      </div>
+    </div>
+  );
+}
