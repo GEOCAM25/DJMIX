@@ -16,7 +16,8 @@ export type SettingKey =
   | 'lastSessionId'
   | 'theme'
   | 'cueDeviceId'
-  | 'cueVolume';
+  | 'cueVolume'
+  | 'googleClientId';
 
 export async function getSetting<T = unknown>(key: SettingKey): Promise<T | undefined> {
   const db = await getDB();

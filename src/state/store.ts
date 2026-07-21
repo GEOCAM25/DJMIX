@@ -5,6 +5,8 @@ import type { DeckId, EngineType, EqValues } from '../audio/types';
 import { decodeFileToAudio } from '../media/decode';
 import { extractVideoId, searchYouTube } from '../media/youtube';
 import { buildStemsZip, downloadBlob, type Stem } from '../media/exportProject';
+import { exportBackupBlob, exportBackup, parseBackupFile, importBackup } from '../storage/backup';
+import { connectDrive, driveUpload, driveList, driveDownload, type DriveFile } from '../cloud/googleDrive';
 import { detectBpm } from '../analysis/bpm';
 import { detectKey } from '../analysis/key';
 import { computeSmartWaveform } from '../analysis/smartWaveform';
@@ -117,6 +119,10 @@ interface StoreState {
 
   settings: { youtubeApiKey: string; aiApiKey: string };
 
+  // Google Drive (respaldo en la nube del usuario)
+  driveToken: string | null;
+  driveFiles: DriveFile[];
+
   // ── Ciclo de vida ─────────────────────────────────────────────────────
   init: () => Promise<void>;
 
@@ -176,6 +182,14 @@ interface StoreState {
   refreshLibrary: () => Promise<void>;
   removeTrack: (id: string) => Promise<void>;
 
+  // ── Respaldo (Bring Your Own Cloud) ────────────────────────────────────────
+  downloadBackup: (includeBlobs: boolean) => Promise<void>;
+  restoreBackup: (file: File, mode: 'merge' | 'replace') => Promise<void>;
+  connectGoogleDrive: (clientId: string) => Promise<void>;
+  backupToDrive: () => Promise<void>;
+  listDriveBackups: () => Promise<void>;
+  restoreFromDrive: (fileId: string) => Promise<void>;
+
   // ── Copiloto ─────────────────────────────────────────────────────────────
   analyzeMix: () => void;
   fetchSuggestions: () => Promise<void>;
@@ -217,6 +231,8 @@ export const useStore = create<StoreState>((set, get) => ({
 
   copilot: { advice: null, librarySuggestions: [], youtubeSuggestions: [], loading: false },
   settings: { youtubeApiKey: '', aiApiKey: '' },
+  driveToken: null,
+  driveFiles: [],
 
   async init() {
     if (get().started) return;
@@ -777,6 +793,87 @@ export const useStore = create<StoreState>((set, get) => ({
   async removeTrack(id) {
     await dbDeleteTrack(id);
     await get().refreshLibrary();
+  },
+
+  // ── Respaldo (Bring Your Own Cloud) ────────────────────────────────────────
+  async downloadBackup(includeBlobs) {
+    set({ status: { busy: true, message: 'Generando respaldo…', progress: 0.4 } });
+    try {
+      const blob = await exportBackupBlob(includeBlobs);
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+      downloadBlob(blob, `djmix-backup-${stamp}.json`);
+      set({ status: { busy: false, message: 'Respaldo descargado', progress: 1 } });
+    } catch (err) {
+      set({ status: { busy: false, message: `Error al respaldar: ${(err as Error).message}`, progress: 0 } });
+    }
+  },
+
+  async restoreBackup(file, mode) {
+    set({ status: { busy: true, message: 'Restaurando respaldo…', progress: 0.4 } });
+    try {
+      const envelope = await parseBackupFile(file);
+      const result = await importBackup(envelope, mode);
+      await Promise.all([get().refreshLibrary(), get().refreshMixes()]);
+      const total = Object.values(result.restored).reduce((a, b) => a + b, 0);
+      set({ status: { busy: false, message: `Restaurados ${total} registros (${mode})`, progress: 1 } });
+    } catch (err) {
+      set({ status: { busy: false, message: `Error al restaurar: ${(err as Error).message}`, progress: 0 } });
+    }
+  },
+
+  async connectGoogleDrive(clientId) {
+    try {
+      await setSetting('googleClientId', clientId);
+      const token = await connectDrive(clientId);
+      set({ driveToken: token, status: { busy: false, message: 'Google Drive conectado', progress: 1 } });
+      await get().listDriveBackups();
+    } catch (err) {
+      set({ status: { busy: false, message: (err as Error).message, progress: 0 } });
+    }
+  },
+
+  async backupToDrive() {
+    const { driveToken } = get();
+    if (!driveToken) {
+      set({ status: { busy: false, message: 'Conecta Google Drive primero.', progress: 0 } });
+      return;
+    }
+    set({ status: { busy: true, message: 'Subiendo respaldo a Drive…', progress: 0.5 } });
+    try {
+      const envelope = await exportBackup(false);
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+      await driveUpload(driveToken, `djmix-backup-${stamp}.json`, JSON.stringify(envelope));
+      set({ status: { busy: false, message: 'Respaldo guardado en tu Google Drive', progress: 1 } });
+      await get().listDriveBackups();
+    } catch (err) {
+      set({ status: { busy: false, message: `Error en Drive: ${(err as Error).message}`, progress: 0 } });
+    }
+  },
+
+  async listDriveBackups() {
+    const { driveToken } = get();
+    if (!driveToken) return;
+    try {
+      set({ driveFiles: await driveList(driveToken) });
+    } catch (err) {
+      set({ status: { busy: false, message: (err as Error).message, progress: 0 } });
+    }
+  },
+
+  async restoreFromDrive(fileId) {
+    const { driveToken } = get();
+    if (!driveToken) return;
+    set({ status: { busy: true, message: 'Descargando de Drive…', progress: 0.4 } });
+    try {
+      const text = await driveDownload(driveToken, fileId);
+      const envelope = JSON.parse(text);
+      const result = await importBackup(envelope, 'merge');
+      await Promise.all([get().refreshLibrary(), get().refreshMixes()]);
+      const total = Object.values(result.restored).reduce((a, b) => a + b, 0);
+      set({ status: { busy: false, message: `Restaurados ${total} registros desde Drive`, progress: 1 } });
+    } catch (err) {
+      set({ status: { busy: false, message: `Error al restaurar de Drive: ${(err as Error).message}`, progress: 0 } });
+    }
   },
 
   analyzeMix() {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useStore } from '../../state/store';
 import { getStorageEstimate } from '../../storage/db';
+import { BackupSection } from '../Backup/BackupSection';
 
 /**
  * Ajustes: claves API (opcionales) y uso de almacenamiento local.
@@ -27,7 +28,11 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="overlay" onClick={onClose}>
-      <div className="panel card" style={{ textAlign: 'left', maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
+      <div
+        className="panel card"
+        style={{ textAlign: 'left', maxWidth: 480, maxHeight: '86vh', overflowY: 'auto' }}
+        onClick={(e) => e.stopPropagation()}
+      >
         <h3>Ajustes</h3>
 
         <label className="field">
@@ -56,10 +61,12 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
           )}
         </div>
 
+        <BackupSection />
+
         <div className="row" style={{ marginTop: 16 }}>
           <div className="spacer" />
           <button onClick={onClose}>Cancelar</button>
-          <button className="primary" onClick={save}>Guardar</button>
+          <button className="primary" onClick={save}>Guardar claves</button>
         </div>
       </div>
     </div>

@@ -50,7 +50,7 @@ actualiza el link en vivo (GitHub Pages) automáticamente.
 - [ ] Onboarding con tour guiado (react-joyride / intro.js)
 
 ## ⏳ Transmisión y Respaldo
-- [ ] Respaldo en la nube (export/import de IndexedDB a JSON; OAuth2 cliente para Google Drive, sin backend)
+- [x] Respaldo en la nube (export/import de IndexedDB a JSON; Google Drive appDataFolder vía OAuth2 cliente, sin backend)
 - [ ] Radio Web (WebCodecs para codificar el máster + WebSocket a Icecast/Node; botón ON AIR)
 - [ ] Modo V-Tuber / Avatar DJ (MediaPipe Face Mesh; avatar en canvas reactivo al máster)
 
