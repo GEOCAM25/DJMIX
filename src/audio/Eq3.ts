@@ -52,4 +52,26 @@ export class Eq3 implements AudioUnit {
   get values(): EqValues {
     return { low: this.low.gain.value, mid: this.mid.gain.value, high: this.high.gain.value };
   }
+
+  private bandNode(band: keyof EqValues): BiquadFilterNode {
+    return band === 'low' ? this.low : band === 'mid' ? this.mid : this.high;
+  }
+
+  /**
+   * Rampa LINEAL de una banda hasta `db` en `duration` s (para automatizaciones
+   * como el "bass swap" del Auto-DJ). Usa linearRampToValueAtTime.
+   */
+  rampBand(band: keyof EqValues, db: number, startTime: number, duration: number): void {
+    const p = this.bandNode(band).gain;
+    p.cancelScheduledValues(startTime);
+    p.setValueAtTime(p.value, startTime);
+    p.linearRampToValueAtTime(db, startTime + duration);
+  }
+
+  /** Fija una banda de forma inmediata (sin rampa), cancelando lo agendado. */
+  setBandNow(band: keyof EqValues, db: number): void {
+    const p = this.bandNode(band).gain;
+    p.cancelScheduledValues(this.ctx.currentTime);
+    p.setValueAtTime(db, this.ctx.currentTime);
+  }
 }

@@ -42,12 +42,10 @@ jobs:
       - name: Build
         run: npm run build -- --base="/${{ github.event.repository.name }}/"
 
-      # enablement: true intenta ACTIVAR Pages automáticamente (con permiso
-      # pages: write), evitando el paso manual en Settings → Pages.
-      - uses: actions/configure-pages@v5
-        with:
-          enablement: true
-
+      # Nota: no usamos actions/configure-pages porque el GITHUB_TOKEN no puede
+      # CREAR el sitio de Pages (solo desplegar en él). Pages se activa una vez
+      # a mano (Settings → Pages → Source: GitHub Actions); a partir de ahí cada
+      # push despliega solo. Pasamos --base explícito, así que no hace falta.
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

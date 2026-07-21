@@ -45,6 +45,7 @@ export class AudioEngine {
   private readonly recordDest: MediaStreamAudioDestinationNode;
   private readonly channels: Record<DeckId, Channel>;
   private _crossfade = 0; // -1 (A) .. +1 (B)
+  private autoTransitioning = false; // el Auto-DJ controla el crossfader
 
   constructor() {
     this.ctx = new AudioContext({ latencyHint: 'interactive' });
@@ -153,6 +154,9 @@ export class AudioEngine {
    * cada canal y la aplica al motor activo (GainNode local o volumen de YT).
    */
   private applyCrossfade(): void {
+    // Durante una transición automática, el Auto-DJ agenda rampas sobre los
+    // gains; ignoramos el crossfader manual para no pisar la automatización.
+    if (this.autoTransitioning) return;
     const x = (this._crossfade + 1) / 2; // 0..1
     const gA = Math.cos((x * Math.PI) / 2) * this.channels.A.fader;
     const gB = Math.sin((x * Math.PI) / 2) * this.channels.B.fader;
@@ -182,6 +186,56 @@ export class AudioEngine {
 
   setChannelFilter(id: DeckId, value: number): void {
     this.channels[id].deck.setFilter(value);
+  }
+
+  // ── Automatización de mezcla (Auto-DJ) ─────────────────────────────────────
+  get isAutoTransitioning(): boolean {
+    return this.autoTransitioning;
+  }
+
+  /** Coloca el crossfader instantáneamente 100% sobre un deck (sin rampa). */
+  armCrossfadeTo(id: DeckId): void {
+    this._crossfade = id === 'B' ? 1 : -1;
+    this.autoTransitioning = false;
+    this.applyCrossfade();
+  }
+
+  /**
+   * Transición automática A↔B de duración `duration` s con:
+   *  - crossfade LINEAL (linearRampToValueAtTime) entre los gains de canal;
+   *  - "bass swap": el grave del saliente baja a kill mientras el del entrante
+   *    sube desde kill, evitando el choque de bombos/bajos.
+   * El deck entrante debe empezar a sonar justo antes de llamar a este método.
+   */
+  beginAutoTransition(from: DeckId, to: DeckId, duration: number): void {
+    const t0 = this.ctx.currentTime;
+    const chFrom = this.channels[from];
+    const chTo = this.channels[to];
+    this.autoTransitioning = true;
+
+    // Crossfade lineal de ganancias de canal.
+    const rampGain = (param: AudioParam, target: number) => {
+      param.cancelScheduledValues(t0);
+      param.setValueAtTime(param.value, t0);
+      param.linearRampToValueAtTime(target, t0 + duration);
+    };
+    rampGain(chFrom.gain.gain, 0);
+    rampGain(chTo.gain.gain, chTo.fader);
+
+    // Bass swap: entrante arranca con el grave cortado y lo recupera.
+    chTo.deck.eq.setBandNow('low', -26);
+    chFrom.deck.eq.rampBand('low', -26, t0, duration);
+    chTo.deck.eq.rampBand('low', 0, t0, duration);
+  }
+
+  /** Cierra la transición: fija el estado final y restaura el EQ del saliente. */
+  finishAutoTransition(from: DeckId, to: DeckId): void {
+    this.autoTransitioning = false;
+    this._crossfade = to === 'B' ? 1 : -1;
+    // El grave del saliente se ramó a kill; lo dejamos neutro para su próximo uso.
+    this.channels[from].deck.eq.setBandNow('low', 0);
+    this.channels[from].deck.setEq({ low: 0 });
+    this.applyCrossfade();
   }
 
   // ── Pre-escucha / Cue de audífonos (PFL) ──────────────────────────────────

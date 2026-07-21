@@ -87,6 +87,21 @@ interface StoreState {
   cueVolume: number;
   cueSupported: boolean;
 
+  // Auto-DJ (piloto automático)
+  autoDj: {
+    enabled: boolean;
+    /** Cola de trackIds locales pendientes de reproducir. */
+    queue: string[];
+    /** Deck que suena actualmente bajo control del Auto-DJ. */
+    currentDeck: DeckId;
+    /** ¿Hay una transición automática en curso? */
+    transitioning: boolean;
+    /** Duración del crossfade automático en segundos. */
+    crossfadeSeconds: number;
+    /** Posición (s) del deck actual en la que se dispara la transición. */
+    nextAt: number | null;
+  };
+
   library: TrackMeta[];
   mixes: MixMeta[];
   recording: boolean;
@@ -133,6 +148,17 @@ interface StoreState {
   setCueDevice: (deviceId: string) => Promise<void>;
   setCueVolume: (v: number) => void;
 
+  // ── Auto-DJ (piloto automático) ────────────────────────────────────────────
+  toggleAutoDj: () => Promise<void>;
+  addToQueue: (trackId: string) => void;
+  removeFromQueue: (trackId: string) => void;
+  clearQueue: () => void;
+  setAutoCrossfade: (seconds: number) => void;
+  /** Ajusta el tempo de `deck` para igualar el BPM efectivo de `reference`. */
+  beatmatch: (deck: DeckId, reference: DeckId) => void;
+  /** Ejecuta la transición automática al siguiente tema (uso interno del tick). */
+  autoDjTransition: () => void;
+
   // ── Efectos ────────────────────────────────────────────────────────────
   setReverb: (v: number) => void;
   setEcho: (v: number) => void;
@@ -171,6 +197,15 @@ export const useStore = create<StoreState>((set, get) => ({
   cueDeviceId: null,
   cueVolume: 0.9,
   cueSupported: false,
+
+  autoDj: {
+    enabled: false,
+    queue: [],
+    currentDeck: 'A',
+    transitioning: false,
+    crossfadeSeconds: 8,
+    nextAt: null,
+  },
 
   library: [],
   mixes: [],
@@ -239,6 +274,16 @@ export const useStore = create<StoreState>((set, get) => ({
         }
       }
       if (changed) set({ decks: next });
+
+      // Auto-DJ: dispara la transición cuando el deck actual llega a su umbral.
+      const adj = get().autoDj;
+      if (adj.enabled && !adj.transitioning && adj.nextAt != null) {
+        const cur = next[adj.currentDeck];
+        if (cur.duration > 0 && cur.position >= adj.nextAt) {
+          get().autoDjTransition();
+        }
+      }
+
       requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
@@ -507,6 +552,140 @@ export const useStore = create<StoreState>((set, get) => ({
     get().engine?.setCueVolume(v);
     void setSetting('cueVolume', v);
     set({ cueVolume: v });
+  },
+
+  // ── Auto-DJ (piloto automático) ────────────────────────────────────────────
+  beatmatch(deck, reference) {
+    const { decks } = get();
+    const refBpm = decks[reference].bpm;
+    const myBpm = decks[deck].bpm;
+    if (!refBpm || !myBpm) return;
+    const refEffective = refBpm * (1 + decks[reference].tempo / 100);
+    const percent = (refEffective / myBpm - 1) * 100;
+    get().setTempo(deck, Math.max(-50, Math.min(50, percent)));
+  },
+
+  addToQueue(trackId) {
+    set((s) => (s.autoDj.queue.includes(trackId) ? s : { autoDj: { ...s.autoDj, queue: [...s.autoDj.queue, trackId] } }));
+  },
+  removeFromQueue(trackId) {
+    set((s) => ({ autoDj: { ...s.autoDj, queue: s.autoDj.queue.filter((id) => id !== trackId) } }));
+  },
+  clearQueue() {
+    set((s) => ({ autoDj: { ...s.autoDj, queue: [] } }));
+  },
+  setAutoCrossfade(seconds) {
+    set((s) => ({ autoDj: { ...s.autoDj, crossfadeSeconds: Math.max(2, Math.min(30, seconds)) } }));
+  },
+
+  async toggleAutoDj() {
+    const { autoDj, engine, library, decks } = get();
+    if (!engine) return;
+
+    // Desactivar: soltar el control, dejar sonando lo que haya.
+    if (autoDj.enabled) {
+      set({ autoDj: { ...autoDj, enabled: false, transitioning: false, nextAt: null } });
+      return;
+    }
+
+    // Construir la cola: la definida por el usuario o toda la biblioteca local.
+    const localIds = library.filter((t) => t.engine === 'local').map((t) => t.id);
+    let queue = autoDj.queue.filter((id) => localIds.includes(id));
+    if (queue.length === 0) queue = localIds;
+    if (queue.length === 0) {
+      set({ status: { busy: false, message: 'Auto-DJ: importa pistas locales primero.', progress: 0 } });
+      return;
+    }
+
+    // Deck actual: el que ya suene; si ninguno, el A.
+    const currentDeck: DeckId = decks.A.playing ? 'A' : decks.B.playing ? 'B' : 'A';
+    const otherDeck: DeckId = currentDeck === 'A' ? 'B' : 'A';
+    let qi = 0;
+
+    // Si el deck actual está vacío, cargar y reproducir la primera pista.
+    if (!get().decks[currentDeck].trackId) {
+      await get().loadLocalTrackToDeck(currentDeck, queue[qi++]);
+      engine.armCrossfadeTo(currentDeck);
+      if (!get().decks[currentDeck].playing) get().togglePlay(currentDeck);
+    } else {
+      engine.armCrossfadeTo(currentDeck);
+    }
+
+    // Precargar la siguiente pista en el otro deck y beatmatch.
+    if (qi < queue.length && !get().decks[otherDeck].playing) {
+      await get().loadLocalTrackToDeck(otherDeck, queue[qi++]);
+      get().beatmatch(otherDeck, currentDeck);
+    }
+
+    const cur = get().decks[currentDeck];
+    const cf = autoDj.crossfadeSeconds;
+    const nextAt = Math.max(cur.position + 6, cur.duration - cf - 3);
+
+    set({
+      crossfade: currentDeck === 'B' ? 1 : -1,
+      autoDj: {
+        ...get().autoDj,
+        enabled: true,
+        queue: queue.slice(qi),
+        currentDeck,
+        transitioning: false,
+        nextAt,
+      },
+    });
+  },
+
+  autoDjTransition() {
+    const { engine, autoDj } = get();
+    if (!engine || autoDj.transitioning) return;
+    const from = autoDj.currentDeck;
+    const to: DeckId = from === 'A' ? 'B' : 'A';
+
+    // El deck entrante debe tener pista precargada; si no, no hay más mezcla.
+    if (!get().decks[to].trackId) {
+      set({ autoDj: { ...autoDj, enabled: false, nextAt: null } });
+      return;
+    }
+
+    // Marcar transición (sincrónico) para que el tick no la vuelva a disparar.
+    set({ autoDj: { ...autoDj, transitioning: true, nextAt: null } });
+
+    // Beatmatch final, arrancar el entrante y lanzar el crossfade + bass swap.
+    get().beatmatch(to, from);
+    get().seek(to, 0);
+    if (!get().decks[to].playing) get().togglePlay(to);
+    const cf = get().autoDj.crossfadeSeconds;
+    engine.beginAutoTransition(from, to, cf);
+
+    // Al terminar el crossfade: cerrar, parar el saliente y preparar el siguiente.
+    window.setTimeout(() => {
+      const eng = get().engine;
+      if (!eng) return;
+      eng.finishAutoTransition(from, to);
+      if (get().decks[from].playing) get().togglePlay(from); // pausar saliente
+
+      void (async () => {
+        const queue = get().autoDj.queue;
+        const hasNext = queue.length > 0;
+        if (hasNext) {
+          await get().loadLocalTrackToDeck(from, queue[0]);
+          get().beatmatch(from, to);
+        }
+        const toDeck = get().decks[to];
+        const cfNow = get().autoDj.crossfadeSeconds;
+        const nextAt = hasNext ? Math.max(toDeck.position + 6, toDeck.duration - cfNow - 3) : null;
+        set((s) => ({
+          crossfade: to === 'B' ? 1 : -1,
+          autoDj: {
+            ...s.autoDj,
+            currentDeck: to,
+            transitioning: false,
+            queue: hasNext ? queue.slice(1) : [],
+            nextAt,
+            enabled: hasNext, // sin más pistas, el Auto-DJ se detiene solo
+          },
+        }));
+      })();
+    }, cf * 1000);
   },
 
   setReverb(v) {

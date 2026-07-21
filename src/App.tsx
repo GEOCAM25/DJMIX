@@ -6,6 +6,7 @@ import { EffectsPanel } from './components/Effects/EffectsPanel';
 import { LibraryPanel } from './components/Library/LibraryPanel';
 import { RecorderPanel } from './components/Recorder/RecorderPanel';
 import { CopilotPanel } from './components/Copilot/CopilotPanel';
+import { AutoDjPanel } from './components/AutoDj/AutoDjPanel';
 import { SettingsPanel } from './components/Settings/SettingsPanel';
 import { Visualizer } from './components/Visualizer/Visualizer';
 import { useInstallPrompt } from './pwa/pwa';
@@ -93,10 +94,12 @@ export function App() {
         <CopilotPanel />
       </div>
 
-      <div className="bottom-row">
-        <LibraryPanel />
+      <div className="decks-row" style={{ gridTemplateColumns: '1fr 1fr' }}>
+        <AutoDjPanel />
         <RecorderPanel />
       </div>
+
+      <LibraryPanel />
 
       {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
       {showVisualizer && <Visualizer onClose={() => setShowVisualizer(false)} />}

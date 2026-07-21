@@ -14,6 +14,7 @@ export function LibraryPanel() {
   const library = useStore((s) => s.library);
   const loadLocalTrackToDeck = useStore((s) => s.loadLocalTrackToDeck);
   const removeTrack = useStore((s) => s.removeTrack);
+  const addToQueue = useStore((s) => s.addToQueue);
 
   return (
     <div className="panel">
@@ -43,6 +44,7 @@ export function LibraryPanel() {
                 </div>
                 <button className="mini-btn" onClick={() => loadLocalTrackToDeck('A', t.id)}>▶ A</button>
                 <button className="mini-btn" onClick={() => loadLocalTrackToDeck('B', t.id)}>▶ B</button>
+                <button className="mini-btn" onClick={() => addToQueue(t.id)} title="Añadir a la cola del Auto-DJ">+ Cola</button>
                 <button className="mini-btn danger" onClick={() => removeTrack(t.id)} title="Eliminar">✕</button>
               </div>
             ))}
