@@ -26,9 +26,9 @@ actualiza el link en vivo (GitHub Pages) automáticamente.
 
 ## ✅ Fase Final — en progreso
 - [x] **Auto-DJ (Piloto Automático)**: beatmatch + crossfade lineal con “bass swap”
+- [x] **Exportación multi-pista a ZIP** (stems WAV con JSZip + project.json)
 - [ ] **Live Looping Station** (4 canales, grabación por compases, loops sincronizados)
 - [ ] **Control de luces inteligentes** (Web Bluetooth / HTTP; Philips Hue + genérico)
-- [ ] **Exportación multi-pista a ZIP** (stems WAV con JSZip)
 
 ## ⏳ DJ-Pro (pendiente)
 - [ ] Controladores MIDI (Web MIDI API + mapeo CC)
@@ -48,6 +48,23 @@ actualiza el link en vivo (GitHub Pages) automáticamente.
 - [ ] **Vocal Remover / stems** con ONNX Runtime Web (cliente, sin servidor)
 - [ ] **Time-stretching** (cambiar BPM sin alterar el tono)
 - [ ] Onboarding con tour guiado (react-joyride / intro.js)
+
+## ⏳ Transmisión y Respaldo
+- [ ] Respaldo en la nube (export/import de IndexedDB a JSON; OAuth2 cliente para Google Drive, sin backend)
+- [ ] Radio Web (WebCodecs para codificar el máster + WebSocket a Icecast/Node; botón ON AIR)
+- [ ] Modo V-Tuber / Avatar DJ (MediaPipe Face Mesh; avatar en canvas reactivo al máster)
+
+## ⏳ Automatización, Macros y Control Remoto
+- [ ] Motor de temas/skins dinámicos (variables CSS + selector desde JSON: Oscuro Pro, Anime, B/N)
+- [ ] Creador de Macros no-code (encadenar acciones con tiempos; guardar en IndexedDB)
+- [ ] Auto-Slicer de samples (detección de transitorios → 8–16 slices → pads)
+- [ ] Companion App / control remoto (WebRTC/WebSocket para tablet/celular)
+
+## ⏳ IA Avanzada (coproductor)
+- [ ] Smart Cues (análisis espectral → cue points automáticos en Intro/Drop/Climax)
+- [ ] AI Mood Tagger (worker: features de audio → tags de ánimo → IndexedDB para Smart Crates)
+- [ ] Copiloto Lírico (panel lateral de letras con chat IA: versos, rimas, estructura)
+- [ ] Audio Style Transfer (filtros de género por DSP: Lo-Fi, Club, Ambient)
 
 ## ⏳ Rendimiento
 - [ ] Mover procesamiento pesado (BPM/key/FFmpeg/ONNX) a **Web Workers**

@@ -72,6 +72,11 @@ export class Deck implements AudioUnit {
     return this.buffer?.duration ?? 0;
   }
 
+  /** Buffer de audio actualmente cargado (para exportación de stems). */
+  getBuffer(): AudioBuffer | null {
+    return this.buffer;
+  }
+
   get playing(): boolean {
     return this._playing;
   }

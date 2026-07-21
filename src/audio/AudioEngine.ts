@@ -118,6 +118,11 @@ export class AudioEngine {
     return this.channels[id].deck;
   }
 
+  /** Buffer cargado en un deck local (para exportar stems). */
+  getDeckBuffer(id: DeckId): AudioBuffer | null {
+    return this.channels[id].deck.getBuffer();
+  }
+
   getYouTubeDeck(id: DeckId): YouTubeDeck {
     return this.channels[id].yt;
   }

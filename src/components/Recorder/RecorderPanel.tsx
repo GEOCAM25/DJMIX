@@ -20,6 +20,7 @@ export function RecorderPanel() {
   const stopRecording = useStore((s) => s.stopRecording);
   const mixes = useStore((s) => s.mixes);
   const refreshMixes = useStore((s) => s.refreshMixes);
+  const exportStems = useStore((s) => s.exportStems);
   const [name, setName] = useState('');
   const [mode, setMode] = useState<'master' | 'tab'>('master');
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -83,6 +84,19 @@ export function RecorderPanel() {
       <small className="hint" style={{ display: 'block', marginTop: 6 }}>
         El modo "Pestaña" pedirá compartir la pestaña con audio para capturar también YouTube.
       </small>
+
+      <div style={{ marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+        <div className="row" style={{ justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>Exportar proyecto (multi-pista)</span>
+          <button className="mini-btn" onClick={() => void exportStems()}>
+            ⬇ Stems (.zip)
+          </button>
+        </div>
+        <small className="hint" style={{ display: 'block', marginTop: 4 }}>
+          Genera un .zip con cada deck cargado como WAV + un project.json (BPM, tonalidad,
+          cues y estado de la mezcla). Todo local.
+        </small>
+      </div>
 
       <div className="track-list">
         {mixes.length === 0 && <small className="hint">Todavía no has grabado ningún mix.</small>}

@@ -4,6 +4,7 @@ import type { AudioOutputDevice } from '../audio/CueBus';
 import type { DeckId, EngineType, EqValues } from '../audio/types';
 import { decodeFileToAudio } from '../media/decode';
 import { extractVideoId, searchYouTube } from '../media/youtube';
+import { buildStemsZip, downloadBlob, type Stem } from '../media/exportProject';
 import { detectBpm } from '../analysis/bpm';
 import { detectKey } from '../analysis/key';
 import { computeSmartWaveform } from '../analysis/smartWaveform';
@@ -168,6 +169,8 @@ interface StoreState {
   startRecording: (mode: 'master' | 'tab') => Promise<void>;
   stopRecording: (name: string) => Promise<void>;
   refreshMixes: () => Promise<void>;
+  /** Exporta los decks cargados como stems WAV + project.json en un .zip. */
+  exportStems: () => Promise<void>;
 
   // ── Biblioteca ─────────────────────────────────────────────────────────
   refreshLibrary: () => Promise<void>;
@@ -723,6 +726,48 @@ export const useStore = create<StoreState>((set, get) => ({
 
   async refreshMixes() {
     set({ mixes: await listMixes() });
+  },
+
+  async exportStems() {
+    const { engine, decks, channels, crossfade, master, fx } = get();
+    if (!engine) return;
+
+    const stems: Stem[] = [];
+    for (const id of ['A', 'B'] as DeckId[]) {
+      const buffer = engine.getDeckBuffer(id);
+      if (buffer) stems.push({ name: `Deck_${id}_${decks[id].title}`, buffer });
+    }
+    if (stems.length === 0) {
+      set({ status: { busy: false, message: 'Carga pistas en los decks para exportar stems.', progress: 0 } });
+      return;
+    }
+
+    set({ status: { busy: true, message: 'Generando ZIP de stems…', progress: 0.4 } });
+    const project = {
+      app: 'DJMIX',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      decks: (['A', 'B'] as DeckId[]).map((id) => ({
+        deck: id,
+        title: decks[id].title,
+        bpm: decks[id].bpm,
+        camelotKey: decks[id].camelotKey,
+        tempo: decks[id].tempo,
+        cues: decks[id].cues,
+        duration: decks[id].duration,
+      })),
+      mixer: { crossfade, master, channels },
+      fx,
+    };
+
+    try {
+      const blob = await buildStemsZip(stems, project);
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+      downloadBlob(blob, `djmix-project-${stamp}.zip`);
+      set({ status: { busy: false, message: `ZIP exportado (${stems.length} stems)`, progress: 1 } });
+    } catch (err) {
+      set({ status: { busy: false, message: `Error al exportar: ${(err as Error).message}`, progress: 0 } });
+    }
   },
 
   async refreshLibrary() {
