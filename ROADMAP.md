@@ -69,6 +69,10 @@ actualiza el link en vivo (GitHub Pages) automáticamente.
 ## ⏳ Rendimiento
 - [ ] Mover procesamiento pesado (BPM/key/FFmpeg/ONNX) a **Web Workers**
 
+## ✅ UX móvil
+- [x] Consola horizontal en smartphone (Deck A · Mesa · Deck B en fila), aviso de girar
+      en vertical, viewport y controles táctiles
+
 ## ⏳ Marca, empaquetado y v2
 - [x] Logo de marca del usuario (barra, pantalla de inicio e iconos PWA)
 - [ ] APK descargable (TWA/Bubblewrap) que **auto-actualiza** desde la web publicada

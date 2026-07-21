@@ -63,8 +63,20 @@ export function App() {
     );
   }
 
+  const rotateHint = (
+    <div className="rotate-hint">
+      <img src={logoSrc} alt="" className="overlay-logo" />
+      <h2 style={{ margin: 0 }}>Girá tu teléfono</h2>
+      <p style={{ color: 'var(--text-dim)', maxWidth: 320 }}>
+        DJMIX es una consola: se usa en <b>horizontal</b> 📱↔️ para tener los dos decks y la
+        mesa a mano.
+      </p>
+    </div>
+  );
+
   return (
     <div className="app">
+      {rotateHint}
       <div className="topbar">
         <div className="brand">
           <img src={logoSrc} alt="" className="brand-logo" />
@@ -87,18 +99,18 @@ export function App() {
         </div>
       </div>
 
-      <div className="decks-row">
+      <div className="decks-row main-decks">
         <DeckPanel id="A" />
         <MixerPanel />
         <DeckPanel id="B" />
       </div>
 
-      <div className="decks-row" style={{ gridTemplateColumns: '1fr 1fr' }}>
+      <div className="row-2col">
         <EffectsPanel />
         <CopilotPanel />
       </div>
 
-      <div className="decks-row" style={{ gridTemplateColumns: '1fr 1fr' }}>
+      <div className="row-2col">
         <AutoDjPanel />
         <RecorderPanel />
       </div>
