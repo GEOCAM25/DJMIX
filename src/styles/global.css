@@ -64,7 +64,8 @@ button:disabled {
 
 input[type='text'],
 input[type='password'],
-input[type='search'] {
+input[type='search'],
+select {
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -72,9 +73,31 @@ input[type='search'] {
   padding: 9px 12px;
   width: 100%;
 }
-input:focus {
+select {
+  padding: 7px 8px;
+  cursor: pointer;
+}
+input:focus,
+select:focus {
   outline: 2px solid var(--accent);
   outline-offset: -1px;
+}
+
+/* Botón de pre-escucha (Cue de audífonos) por deck. */
+.cue-btn {
+  padding: 4px 8px;
+  font-size: 13px;
+  line-height: 1;
+  border-radius: 8px;
+}
+.cue-btn.active {
+  background: var(--good);
+  color: #06251b;
+  border-color: transparent;
+  box-shadow: 0 0 10px rgba(52, 211, 153, 0.6);
+}
+.cue-btn:disabled {
+  opacity: 0.35;
 }
 
 /* ── Layout ─────────────────────────────────────────────────────────────── */

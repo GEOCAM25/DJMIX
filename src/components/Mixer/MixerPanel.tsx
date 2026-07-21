@@ -35,6 +35,74 @@ function ChannelStrip({ id }: { id: DeckId }) {
 }
 
 /**
+ * Sección de PRE-ESCUCHA (Cue de audífonos): elige la salida secundaria y su
+ * volumen. La activación por deck vive en el botón 🎧 de cada Deck.
+ */
+function CueSection() {
+  const cueSupported = useStore((s) => s.cueSupported);
+  const cueDevices = useStore((s) => s.cueDevices);
+  const cueDeviceId = useStore((s) => s.cueDeviceId);
+  const cueVolume = useStore((s) => s.cueVolume);
+  const cueActive = useStore((s) => s.cueMonitor.A || s.cueMonitor.B);
+  const selectCueOutput = useStore((s) => s.selectCueOutput);
+  const setCueDevice = useStore((s) => s.setCueDevice);
+  const setCueVolume = useStore((s) => s.setCueVolume);
+  const refreshCueDevices = useStore((s) => s.refreshCueDevices);
+
+  return (
+    <div style={{ marginTop: 14, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+      <div className="row" style={{ justifyContent: 'space-between' }}>
+        <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>🎧 Pre-escucha (Cue)</span>
+        {cueActive && <span className="chip" style={{ color: 'var(--good)' }}>activa</span>}
+      </div>
+
+      {!cueSupported ? (
+        <small className="hint" style={{ display: 'block', marginTop: 6 }}>
+          Tu navegador no permite una salida de audio secundaria (setSinkId). Usa
+          Chrome o Edge de escritorio para monitorear por audífonos.
+        </small>
+      ) : (
+        <>
+          <div className="row" style={{ marginTop: 8 }}>
+            <select
+              value={cueDeviceId ?? ''}
+              onChange={(e) => setCueDevice(e.target.value)}
+              style={{ flex: 1 }}
+              aria-label="Salida de audífonos"
+            >
+              <option value="">Salida por defecto (parlantes)</option>
+              {cueDevices.map((d) => (
+                <option key={d.deviceId} value={d.deviceId}>
+                  {d.label}
+                </option>
+              ))}
+            </select>
+            <button className="mini-btn" onClick={() => void selectCueOutput()} title="Elegir salida con el diálogo del navegador">
+              Elegir
+            </button>
+            <button className="mini-btn" onClick={() => void refreshCueDevices()} title="Actualizar lista de salidas">
+              ⟳
+            </button>
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <Fader
+              label={`Volumen audífonos ${Math.round(cueVolume * 100)}%`}
+              value={cueVolume}
+              min={0}
+              max={1}
+              onChange={setCueVolume}
+            />
+          </div>
+          <small className="hint" style={{ display: 'block', marginTop: 4 }}>
+            Activa el 🎧 en un Deck para escucharlo aquí, sin importar el crossfader.
+          </small>
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
  * Mesa central: dos channel strips con EQ de 3 bandas + filtro + fader,
  * el crossfader A/B (curva de igual potencia) y el volumen máster.
  */
@@ -74,6 +142,8 @@ export function MixerPanel() {
         <Fader label={`Máster ${Math.round(master * 100)}%`} value={master} min={0} max={1.2}
           onChange={setMaster} />
       </div>
+
+      <CueSection />
     </div>
   );
 }

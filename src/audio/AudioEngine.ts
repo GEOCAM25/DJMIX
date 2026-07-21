@@ -3,6 +3,7 @@ import { YouTubeDeck } from './YouTubeDeck';
 import { MasterEffects } from './Effects';
 import { Sampler } from './Sampler';
 import { Recorder } from './Recorder';
+import { CueBus, listAudioOutputs, promptSelectOutput, type AudioOutputDevice } from './CueBus';
 import type { DeckId, EngineType, EqValues } from './types';
 
 interface Channel {
@@ -13,6 +14,10 @@ interface Channel {
   gain: GainNode;
   /** Fader de línea del canal (0..1). */
   fader: number;
+  /** Envío de pre-escucha (PFL) hacia el bus de audífonos. */
+  cueGain: GainNode;
+  /** ¿Este deck está en pre-escucha? */
+  cueOn: boolean;
 }
 
 /**
@@ -33,6 +38,7 @@ export class AudioEngine {
   readonly sampler: Sampler;
   readonly recorder: Recorder;
   readonly analyser: AnalyserNode;
+  readonly cueBus: CueBus;
 
   private readonly masterGain: GainNode;
   private readonly limiter: DynamicsCompressorNode;
@@ -69,6 +75,10 @@ export class AudioEngine {
 
     this.recorder = new Recorder(this.recordDest.stream);
 
+    // ── Bus de pre-escucha (audífonos) ─────────────────────────────────────
+    // Segunda salida independiente del máster/crossfader (ver CueBus).
+    this.cueBus = new CueBus(this.ctx);
+
     // ── Sampler ──────────────────────────────────────────────────────────
     this.sampler = new Sampler(this.ctx);
     this.sampler.output.connect(this.effects.input);
@@ -86,8 +96,16 @@ export class AudioEngine {
     gain.connect(this.effects.input);
     const deck = new Deck(this.ctx);
     deck.output.connect(gain);
+
+    // Envío de pre-escucha: toma la señal del deck ANTES del crossfader/fader
+    // (PFL) y la manda al bus de audífonos. Empieza en silencio (cue apagado).
+    const cueGain = this.ctx.createGain();
+    cueGain.gain.value = 0;
+    deck.output.connect(cueGain);
+    cueGain.connect(this.cueBus.input);
+
     const yt = new YouTubeDeck(`yt-deck-${id}`);
-    return { deck, yt, engine: 'local', gain, fader: 1 };
+    return { deck, yt, engine: 'local', gain, fader: 1, cueGain, cueOn: false };
   }
 
   /** Debe llamarse tras un gesto del usuario (política de autoplay). */
@@ -166,11 +184,60 @@ export class AudioEngine {
     this.channels[id].deck.setFilter(value);
   }
 
+  // ── Pre-escucha / Cue de audífonos (PFL) ──────────────────────────────────
+  /** ¿El navegador permite enrutar la pre-escucha a otra salida (setSinkId)? */
+  get canRouteCue(): boolean {
+    return this.cueBus.canRouteOutput;
+  }
+
+  /**
+   * Activa/desactiva la pre-escucha de un deck. Es independiente del crossfader:
+   * el deck puede monitorearse aunque el crossfader esté al lado contrario.
+   * Solo aplica a decks locales (YouTube es cross-origin).
+   */
+  setCueMonitor(id: DeckId, on: boolean): void {
+    const ch = this.channels[id];
+    if (ch.engine === 'youtube') return; // sin señal en el grafo de Web Audio
+    ch.cueOn = on;
+    ch.cueGain.gain.setTargetAtTime(on ? 1 : 0, this.ctx.currentTime, 0.01);
+    const active = (this.channels.A.cueOn ? 1 : 0) + (this.channels.B.cueOn ? 1 : 0);
+    this.cueBus.notifyActive(active);
+  }
+
+  isCueOn(id: DeckId): boolean {
+    return this.channels[id].cueOn;
+  }
+
+  /** Nivel de los audífonos (independiente del máster). */
+  setCueVolume(v: number): void {
+    this.cueBus.setVolume(v);
+  }
+
+  /** Rutea la pre-escucha a un dispositivo de salida (deviceId). */
+  async setCueSinkId(deviceId: string): Promise<void> {
+    await this.cueBus.setSinkId(deviceId);
+  }
+
+  get cueSinkId(): string {
+    return this.cueBus.sinkId;
+  }
+
+  /** Enumera las salidas de audio disponibles. */
+  getCueOutputs(): Promise<AudioOutputDevice[]> {
+    return listAudioOutputs();
+  }
+
+  /** Abre el selector nativo de salida (si el navegador lo soporta). */
+  selectCueOutput(): Promise<AudioOutputDevice | null> {
+    return promptSelectOutput();
+  }
+
   dispose(): void {
     this.channels.A.deck.dispose();
     this.channels.B.deck.dispose();
     this.channels.A.yt.dispose();
     this.channels.B.yt.dispose();
+    this.cueBus.dispose();
     void this.ctx.close();
   }
 }

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { AudioEngine } from '../audio/AudioEngine';
+import type { AudioOutputDevice } from '../audio/CueBus';
 import type { DeckId, EngineType, EqValues } from '../audio/types';
 import { decodeFileToAudio } from '../media/decode';
 import { extractVideoId, searchYouTube } from '../media/youtube';
@@ -76,6 +77,13 @@ interface StoreState {
   master: number;
   fx: { reverb: number; echo: number; filter: number };
 
+  // Pre-escucha (Cue de audífonos)
+  cueMonitor: Record<DeckId, boolean>;
+  cueDevices: AudioOutputDevice[];
+  cueDeviceId: string | null;
+  cueVolume: number;
+  cueSupported: boolean;
+
   library: TrackMeta[];
   mixes: MixMeta[];
   recording: boolean;
@@ -115,6 +123,13 @@ interface StoreState {
   setChannelFilter: (deck: DeckId, v: number) => void;
   setMaster: (v: number) => void;
 
+  // ── Pre-escucha (Cue de audífonos) ────────────────────────────────────────
+  toggleCueMonitor: (deck: DeckId) => void;
+  refreshCueDevices: () => Promise<void>;
+  selectCueOutput: () => Promise<void>;
+  setCueDevice: (deviceId: string) => Promise<void>;
+  setCueVolume: (v: number) => void;
+
   // ── Efectos ────────────────────────────────────────────────────────────
   setReverb: (v: number) => void;
   setEcho: (v: number) => void;
@@ -148,6 +163,12 @@ export const useStore = create<StoreState>((set, get) => ({
   master: 0.85,
   fx: { reverb: 0, echo: 0, filter: 0 },
 
+  cueMonitor: { A: false, B: false },
+  cueDevices: [],
+  cueDeviceId: null,
+  cueVolume: 0.9,
+  cueSupported: false,
+
   library: [],
   mixes: [],
   recording: false,
@@ -173,7 +194,27 @@ export const useStore = create<StoreState>((set, get) => ({
       started: true,
       ai: makeAIProvider(aiKey, model ?? import.meta.env.VITE_AI_MODEL),
       settings: { youtubeApiKey: ytKey, aiApiKey: aiKey },
+      cueSupported: engine.canRouteCue,
     });
+
+    // ── Restaurar configuración de pre-escucha (audífonos) ─────────────────
+    const [savedCueDevice, savedCueVol] = await Promise.all([
+      getSetting<string>('cueDeviceId'),
+      getSetting<number>('cueVolume'),
+    ]);
+    if (savedCueVol != null) {
+      engine.setCueVolume(savedCueVol);
+      set({ cueVolume: savedCueVol });
+    }
+    if (savedCueDevice && engine.canRouteCue) {
+      try {
+        await engine.setCueSinkId(savedCueDevice);
+        set({ cueDeviceId: savedCueDevice });
+      } catch {
+        /* el dispositivo guardado ya no existe; se ignora */
+      }
+    }
+    await get().refreshCueDevices();
 
     await Promise.all([get().refreshLibrary(), get().refreshMixes()]);
 
@@ -389,6 +430,78 @@ export const useStore = create<StoreState>((set, get) => ({
   setMaster(v) {
     get().engine?.setMasterGain(v);
     set({ master: v });
+  },
+
+  // ── Pre-escucha (Cue de audífonos) ────────────────────────────────────────
+  toggleCueMonitor(deck) {
+    const { engine, cueMonitor } = get();
+    if (!engine) return;
+    if (engine.getEngine(deck) === 'youtube') {
+      set({
+        status: {
+          busy: false,
+          message: 'La pre-escucha no está disponible en decks de YouTube (audio cross-origin).',
+          progress: 0,
+        },
+      });
+      return;
+    }
+    const on = !cueMonitor[deck];
+    engine.setCueMonitor(deck, on);
+    set({ cueMonitor: { ...cueMonitor, [deck]: on } });
+    if (on && !engine.cueSinkId && engine.canRouteCue) {
+      set({
+        status: {
+          busy: false,
+          message: 'Elige tu salida de audífonos en el Mezclador para escuchar el Cue.',
+          progress: 0,
+        },
+      });
+    }
+  },
+
+  async refreshCueDevices() {
+    const { engine } = get();
+    if (!engine) return;
+    try {
+      set({ cueDevices: await engine.getCueOutputs() });
+    } catch {
+      /* enumerateDevices puede fallar sin permisos; se ignora */
+    }
+  },
+
+  async selectCueOutput() {
+    const { engine } = get();
+    if (!engine) return;
+    try {
+      const dev = await engine.selectCueOutput(); // selector nativo (si existe)
+      if (dev) {
+        await engine.setCueSinkId(dev.deviceId);
+        await setSetting('cueDeviceId', dev.deviceId);
+        set({ cueDeviceId: dev.deviceId });
+      }
+      await get().refreshCueDevices();
+    } catch (err) {
+      set({ status: { busy: false, message: (err as Error).message, progress: 0 } });
+    }
+  },
+
+  async setCueDevice(deviceId) {
+    const { engine } = get();
+    if (!engine) return;
+    try {
+      await engine.setCueSinkId(deviceId);
+      await setSetting('cueDeviceId', deviceId);
+      set({ cueDeviceId: deviceId });
+    } catch (err) {
+      set({ status: { busy: false, message: (err as Error).message, progress: 0 } });
+    }
+  },
+
+  setCueVolume(v) {
+    get().engine?.setCueVolume(v);
+    void setSetting('cueVolume', v);
+    set({ cueVolume: v });
   },
 
   setReverb(v) {

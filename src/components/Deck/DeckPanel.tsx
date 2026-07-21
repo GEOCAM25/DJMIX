@@ -25,6 +25,8 @@ export function DeckPanel({ id }: DeckPanelProps) {
   const deck = useStore((s) => s.decks[id]);
   const togglePlay = useStore((s) => s.togglePlay);
   const cue = useStore((s) => s.cue);
+  const cueMonitor = useStore((s) => s.cueMonitor[id]);
+  const toggleCueMonitor = useStore((s) => s.toggleCueMonitor);
   const setTempo = useStore((s) => s.setTempo);
   const seek = useStore((s) => s.seek);
   const addCue = useStore((s) => s.addCue);
@@ -41,7 +43,22 @@ export function DeckPanel({ id }: DeckPanelProps) {
         <div className="deck-title" style={{ color }}>
           {id} · {deck.title}
         </div>
-        <div className="chip">{isYoutube ? 'YouTube' : 'Local'}</div>
+        <div className="row" style={{ gap: 6 }}>
+          <button
+            className={`cue-btn${cueMonitor ? ' active' : ''}`}
+            onClick={() => toggleCueMonitor(id)}
+            disabled={isYoutube}
+            aria-pressed={cueMonitor}
+            title={
+              isYoutube
+                ? 'Pre-escucha no disponible en YouTube (audio cross-origin)'
+                : 'Pre-escucha por audífonos (PFL) — independiente del crossfader'
+            }
+          >
+            🎧
+          </button>
+          <div className="chip">{isYoutube ? 'YouTube' : 'Local'}</div>
+        </div>
       </div>
 
       <div className="deck-meta">

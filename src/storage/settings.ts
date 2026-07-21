@@ -14,7 +14,9 @@ export type SettingKey =
   | 'crossfaderCurve'
   | 'masterGain'
   | 'lastSessionId'
-  | 'theme';
+  | 'theme'
+  | 'cueDeviceId'
+  | 'cueVolume';
 
 export async function getSetting<T = unknown>(key: SettingKey): Promise<T | undefined> {
   const db = await getDB();
