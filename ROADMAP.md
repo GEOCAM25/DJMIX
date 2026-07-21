@@ -68,3 +68,10 @@ actualiza el link en vivo (GitHub Pages) automáticamente.
 
 ## ⏳ Rendimiento
 - [ ] Mover procesamiento pesado (BPM/key/FFmpeg/ONNX) a **Web Workers**
+
+## ⏳ Marca, empaquetado y v2
+- [x] Logo de marca del usuario (barra, pantalla de inicio e iconos PWA)
+- [ ] APK descargable (TWA/Bubblewrap) que **auto-actualiza** desde la web publicada
+- [ ] Repaso final: verificar que TODO quedó implementado correctamente
+- [ ] Reparar errores encontrados en el repaso
+- [ ] v2 mejorada (pulido de UX/rendimiento sobre la base completa)

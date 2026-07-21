@@ -36,10 +36,13 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [showVisualizer]);
 
+  const logoSrc = `${import.meta.env.BASE_URL}logo.png`;
+
   if (!started) {
     return (
       <div className="overlay">
         <div className="panel card">
+          <img src={logoSrc} alt="DJMIX" className="overlay-logo" />
           <h1>
             DJ<span style={{ background: 'linear-gradient(90deg,var(--accent-a),var(--accent-b))', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>MIX</span>
           </h1>
@@ -64,6 +67,7 @@ export function App() {
     <div className="app">
       <div className="topbar">
         <div className="brand">
+          <img src={logoSrc} alt="" className="brand-logo" />
           DJ<span>MIX</span> <span className="tag">local-first · sin registro</span>
         </div>
         <div className="status-bar">

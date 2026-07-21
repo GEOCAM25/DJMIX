@@ -120,6 +120,24 @@ select:focus {
   font-size: 20px;
   letter-spacing: 0.5px;
 }
+.brand-logo {
+  height: 32px;
+  width: 32px;
+  object-fit: contain;
+  vertical-align: middle;
+  margin-right: 9px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+.overlay-logo {
+  width: 136px;
+  height: 136px;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto 10px;
+  border-radius: 24px;
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.45);
+}
 .brand span {
   background: linear-gradient(90deg, var(--accent-a), var(--accent-b));
   -webkit-background-clip: text;
