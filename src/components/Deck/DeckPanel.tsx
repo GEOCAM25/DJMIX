@@ -79,6 +79,7 @@ export function DeckPanel({ id }: DeckPanelProps) {
           duration={deck.duration}
           cues={deck.cues}
           color={color}
+          bands={deck.waveBands}
           onSeek={(sec) => seek(id, sec)}
         />
       )}

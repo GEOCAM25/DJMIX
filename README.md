@@ -211,6 +211,29 @@ La app funciona sin ninguna clave. Para funciones extra, el usuario las introduc
 
 ---
 
+## 5.1 Despliegue y link en vivo (GitHub Pages) + PWA
+
+El repo incluye `.github/workflows/deploy.yml`, que **construye y publica** la app en
+GitHub Pages en cada push. El link queda en `https://<usuario>.github.io/<repo>/`.
+
+**Paso único requerido (una sola vez):** en GitHub → **Settings → Pages → Build and
+deployment → Source: GitHub Actions**. (Si el deploy se bloquea por protección de
+entorno, en **Settings → Environments → github-pages** permite la rama de desarrollo en
+"Deployment branches".) Tras eso, cada push actualiza el link automáticamente.
+
+> Nota: GitHub Pages no permite fijar cabeceras COOP/COEP. Por eso DJMIX usa el **core
+> mono-hilo de FFmpeg.wasm**, que **no** requiere `SharedArrayBuffer` ni aislamiento de
+> origen: funciona en Pages sin problemas. (En dev/preview sí se activan COOP/COEP por si
+> quieres cambiar al core multi-hilo.)
+
+**PWA instalable:** `public/manifest.webmanifest` + `public/sw.js` (Service Worker con
+caché *stale-while-revalidate* y soporte offline) hacen la app **instalable** en iPhone,
+iPad, Android y escritorio. El botón **"⬇ Instalar app"** aparece cuando el navegador lo
+permite; en iOS se instala con "Compartir → Añadir a pantalla de inicio". Los iconos se
+generan sin dependencias con `node scripts/gen-icons.mjs`.
+
+---
+
 ## 6. Privacidad y modelo gratis
 
 - **Sin registro, sin muros de pago, sin base de datos central.** No existe backend de DJMIX.

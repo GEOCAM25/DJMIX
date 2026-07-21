@@ -6,7 +6,7 @@ import { decodeFileToAudio } from '../media/decode';
 import { extractVideoId, searchYouTube } from '../media/youtube';
 import { detectBpm } from '../analysis/bpm';
 import { detectKey } from '../analysis/key';
-import { extractPeaks } from '../analysis/waveform';
+import { computeSmartWaveform } from '../analysis/smartWaveform';
 import {
   saveTrack,
   listTracks,
@@ -33,6 +33,8 @@ export interface DeckUIState {
   energy: number | null;
   cues: number[];
   peaks: Float32Array | null;
+  /** Reparto de energía por columna (graves/medios/agudos) para el color. */
+  waveBands: { low: Float32Array; mid: Float32Array; high: Float32Array } | null;
   youtubeId: string | null;
 }
 
@@ -61,6 +63,7 @@ const emptyDeck = (): DeckUIState => ({
   energy: null,
   cues: [],
   peaks: null,
+  waveBands: null,
   youtubeId: null,
 });
 
@@ -285,6 +288,7 @@ export const useStore = create<StoreState>((set, get) => ({
     const buffer = await engine.ctx.decodeAudioData(await blob.arrayBuffer());
     engine.setEngine(deck, 'local');
     engine.getDeck(deck).load(buffer);
+    const wave = computeSmartWaveform(buffer);
     set((s) => ({
       status: { busy: false, message: '', progress: 1 },
       decks: {
@@ -299,7 +303,8 @@ export const useStore = create<StoreState>((set, get) => ({
           camelotKey: meta.camelotKey,
           energy: meta.energy,
           cues: meta.cues,
-          peaks: extractPeaks(buffer),
+          peaks: wave.peaks,
+          waveBands: { low: wave.low, mid: wave.mid, high: wave.high },
         },
       },
     }));

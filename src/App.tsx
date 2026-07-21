@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useStore } from './state/store';
 import { DeckPanel } from './components/Deck/DeckPanel';
 import { MixerPanel } from './components/Mixer/MixerPanel';
@@ -7,6 +7,8 @@ import { LibraryPanel } from './components/Library/LibraryPanel';
 import { RecorderPanel } from './components/Recorder/RecorderPanel';
 import { CopilotPanel } from './components/Copilot/CopilotPanel';
 import { SettingsPanel } from './components/Settings/SettingsPanel';
+import { Visualizer } from './components/Visualizer/Visualizer';
+import { useInstallPrompt } from './pwa/pwa';
 
 /**
  * Layout principal del estudio DJMIX.
@@ -22,6 +24,16 @@ export function App() {
   const recording = useStore((s) => s.recording);
   const status = useStore((s) => s.status);
   const [showSettings, setShowSettings] = useState(false);
+  const [showVisualizer, setShowVisualizer] = useState(false);
+  const { available: canInstall, install } = useInstallPrompt();
+
+  // Cerrar el visualizador con Esc.
+  useEffect(() => {
+    if (!showVisualizer) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setShowVisualizer(false);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showVisualizer]);
 
   if (!started) {
     return (
@@ -56,7 +68,15 @@ export function App() {
         <div className="status-bar">
           <span className={`dot${recording ? ' rec' : ''}`} />
           {recording ? 'Grabando sesión…' : status.message || 'Listo'}
-          <button className="mini-btn" style={{ marginLeft: 10 }} onClick={() => setShowSettings(true)}>
+          {canInstall && (
+            <button className="mini-btn primary" style={{ marginLeft: 10 }} onClick={() => void install()}>
+              ⬇ Instalar app
+            </button>
+          )}
+          <button className="mini-btn" style={{ marginLeft: 10 }} onClick={() => setShowVisualizer(true)}>
+            ✦ Visualizador
+          </button>
+          <button className="mini-btn" style={{ marginLeft: 6 }} onClick={() => setShowSettings(true)}>
             ⚙ Ajustes
           </button>
         </div>
@@ -79,6 +99,7 @@ export function App() {
       </div>
 
       {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
+      {showVisualizer && <Visualizer onClose={() => setShowVisualizer(false)} />}
 
       <footer style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: 11, padding: '8px 0 20px' }}>
         DJMIX · Web Audio API · FFmpeg.wasm · IndexedDB — hecho para mezclar libremente.

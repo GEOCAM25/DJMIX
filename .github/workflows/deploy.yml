@@ -1,0 +1,59 @@
+name: Deploy DJMIX to GitHub Pages
+
+# Publica la app en GitHub Pages en cada push a la rama de desarrollo.
+# El link resultante es: https://<usuario>.github.io/<repo>/
+#
+# ── PASO ÚNICO REQUERIDO (una sola vez) ──────────────────────────────────────
+#   En GitHub → Settings → Pages → "Build and deployment" → Source: GitHub Actions.
+#   (Si el deploy queda bloqueado por protección de entorno, en Settings →
+#    Environments → github-pages, permite esta rama en "Deployment branches".)
+
+on:
+  push:
+    branches:
+      - claude/professional-dj-web-app-t0yohs
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Un solo despliegue a la vez; cancela los anteriores en curso.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # base = nombre del repo, para que los assets resuelvan bajo /<repo>/.
+      - name: Build
+        run: npm run build -- --base="/${{ github.event.repository.name }}/"
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

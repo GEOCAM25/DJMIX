@@ -1,0 +1,17 @@
+{
+  "name": "DJMIX · Estudio de Mezcla DJ",
+  "short_name": "DJMIX",
+  "description": "Estudio de mezcla DJ profesional, gratis y privado. Mezcla YouTube y tus archivos, graba tus sets y recibe asistencia de IA.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b0e14",
+  "theme_color": "#0b0e14",
+  "categories": ["music", "entertainment", "productivity"],
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

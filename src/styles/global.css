@@ -434,6 +434,25 @@ select:focus {
   margin: 0 0 8px;
 }
 
+/* ── Visualizador reactivo ───────────────────────────────────────────────── */
+.visualizer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: #0b0e14;
+}
+.visualizer-canvas {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+}
+.visualizer-close {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 61;
+}
+
 .status-bar {
   font-size: 12px;
   color: var(--text-dim);
@@ -441,6 +460,8 @@ select:focus {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 .dot {
   width: 8px;
