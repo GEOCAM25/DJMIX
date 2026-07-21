@@ -61,7 +61,7 @@ actualiza el link en vivo (GitHub Pages) automáticamente.
 - [ ] Companion App / control remoto (WebRTC/WebSocket para tablet/celular)
 
 ## ⏳ IA Avanzada (coproductor)
-- [ ] Smart Cues (análisis espectral → cue points automáticos en Intro/Drop/Climax)
+- [x] Smart Cues (análisis de energía → cue points automáticos al cargar la pista)
 - [ ] AI Mood Tagger (worker: features de audio → tags de ánimo → IndexedDB para Smart Crates)
 - [ ] Copiloto Lírico (panel lateral de letras con chat IA: versos, rimas, estructura)
 - [ ] Audio Style Transfer (filtros de género por DSP: Lo-Fi, Club, Ambient)

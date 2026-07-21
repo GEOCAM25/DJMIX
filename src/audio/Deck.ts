@@ -130,6 +130,11 @@ export class Deck implements AudioUnit {
     return this.mainCue;
   }
 
+  /** Fija el cue principal a una posición dada (p. ej. el primer Smart Cue). */
+  setMainCue(seconds: number): void {
+    this.mainCue = Math.max(0, Math.min(seconds, this.buffer?.duration ?? seconds));
+  }
+
   /** Comportamiento CUE de mesa: si suena, vuelve al cue y pausa. */
   cue(): void {
     if (this._playing) {

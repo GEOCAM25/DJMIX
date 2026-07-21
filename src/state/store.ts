@@ -11,6 +11,7 @@ import { applyTheme, DEFAULT_THEME_ID } from '../theme/themes';
 import { detectBpm } from '../analysis/bpm';
 import { detectKey } from '../analysis/key';
 import { computeSmartWaveform } from '../analysis/smartWaveform';
+import { detectSmartCues } from '../analysis/smartCues';
 import {
   saveTrack,
   listTracks,
@@ -372,6 +373,16 @@ export const useStore = create<StoreState>((set, get) => ({
     engine.setEngine(deck, 'local');
     engine.getDeck(deck).load(buffer);
     const wave = computeSmartWaveform(buffer);
+
+    // Smart Cues: si la pista no tiene cues guardados, se detectan solos.
+    let cues = meta.cues;
+    if (!cues || cues.length === 0) {
+      cues = detectSmartCues(buffer);
+      if (cues.length > 0) void setTrackCues(meta.id, cues);
+    }
+    // El cue principal (◆ Cue) salta al primer Smart Cue (típicamente la intro).
+    if (cues.length > 0) engine.getDeck(deck).setMainCue(cues[0]);
+
     set((s) => ({
       status: { busy: false, message: '', progress: 1 },
       decks: {
@@ -385,7 +396,7 @@ export const useStore = create<StoreState>((set, get) => ({
           bpm: meta.bpm,
           camelotKey: meta.camelotKey,
           energy: meta.energy,
-          cues: meta.cues,
+          cues,
           peaks: wave.peaks,
           waveBands: { low: wave.low, mid: wave.mid, high: wave.high },
         },
