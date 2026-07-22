@@ -42,8 +42,9 @@ actualiza el link en vivo (GitHub Pages) automáticamente.
 - [ ] Sesiones P2P (WebRTC DataChannels)
 
 ## ⏳ Estudio Ultra-Premium (pendiente)
-- [ ] Grabación vocal en vivo + **Auto-Tune** (AudioWorklet, baja latencia)
-- [ ] Efectos vocales premium (reverb/delay/compresión en tiempo real)
+- [x] **Voz en vivo** (micrófono → máster: se oye y se graba en audio/vídeo)
+- [x] Efectos vocales (pasa-altos + compresor + reverb/delay en tiempo real)
+- [ ] **Auto-Tune** de la voz (AudioWorklet, baja latencia) — pendiente
 - [ ] Línea de tiempo para alinear voz + música
 - [ ] **Vocal Remover / stems** con ONNX Runtime Web (cliente, sin servidor)
 - [ ] **Time-stretching** (cambiar BPM sin alterar el tono)

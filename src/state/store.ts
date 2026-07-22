@@ -203,6 +203,8 @@ interface StoreState {
   runningMacro: string | null;
   /** Luces reactivas: preview encendido + estado de la bombilla BLE. */
   lights: { on: boolean; btSupported: boolean; btConnected: boolean; btName: string };
+  /** Voz en vivo (micrófono) sobre la mezcla. */
+  mic: { enabled: boolean; volume: number; reverb: number; echo: number };
   recording: boolean;
   /** ¿Se está grabando vídeo de la sesión? */
   videoRecording: boolean;
@@ -361,6 +363,12 @@ interface StoreState {
   /** Envía un color a la bombilla BLE (con throttle); no-op si no hay luz. */
   pushLightColor: (r: number, g: number, b: number) => void;
 
+  // ── Voz en vivo (micrófono) ───────────────────────────────────────────────
+  toggleMic: () => Promise<void>;
+  setMicVolume: (v: number) => void;
+  setMicReverb: (v: number) => void;
+  setMicEcho: (v: number) => void;
+
   // ── Respaldo (Bring Your Own Cloud) ────────────────────────────────────────
   downloadBackup: (includeBlobs: boolean) => Promise<void>;
   restoreBackup: (file: File, mode: 'merge' | 'replace') => Promise<void>;
@@ -435,6 +443,7 @@ export const useStore = create<StoreState>((set, get) => ({
     btConnected: false,
     btName: '',
   },
+  mic: { enabled: false, volume: 0.9, reverb: 0.2, echo: 0 },
   recording: false,
   videoRecording: false,
   status: { busy: false, message: '', progress: 0 },
@@ -1526,6 +1535,40 @@ export const useStore = create<StoreState>((set, get) => ({
     if (now - lastLightSend < 90) return; // ~11 fps hacia la bombilla
     lastLightSend = now;
     void bleLight.setColor(r, g, b);
+  },
+
+  // ── Voz en vivo (micrófono) ───────────────────────────────────────────────
+  async toggleMic() {
+    const { engine, mic } = get();
+    if (!engine) return;
+    if (mic.enabled) {
+      engine.mic.disable();
+      set((s) => ({ mic: { ...s.mic, enabled: false }, status: { busy: false, message: 'Micrófono apagado', progress: 1 } }));
+      return;
+    }
+    try {
+      await engine.resume();
+      await engine.mic.enable();
+      engine.mic.setVolume(mic.volume);
+      engine.mic.setReverb(mic.reverb);
+      engine.mic.setEcho(mic.echo);
+      set((s) => ({ mic: { ...s.mic, enabled: true }, status: { busy: false, message: '🎤 Voz en vivo activa', progress: 1 } }));
+    } catch (err) {
+      set({ status: { busy: false, message: `No se pudo activar el micrófono: ${(err as Error).message}`, progress: 0 } });
+    }
+  },
+
+  setMicVolume(v) {
+    get().engine?.mic.setVolume(v);
+    set((s) => ({ mic: { ...s.mic, volume: v } }));
+  },
+  setMicReverb(v) {
+    get().engine?.mic.setReverb(v);
+    set((s) => ({ mic: { ...s.mic, reverb: v } }));
+  },
+  setMicEcho(v) {
+    get().engine?.mic.setEcho(v);
+    set((s) => ({ mic: { ...s.mic, echo: v } }));
   },
 
   addMacro(name, steps) {

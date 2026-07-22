@@ -6,6 +6,7 @@ import { EffectsPanel } from './components/Effects/EffectsPanel';
 import { SequencerPanel } from './components/Sequencer/SequencerPanel';
 import { LoopStationPanel } from './components/Loops/LoopStationPanel';
 import { LightsPanel } from './components/Lights/LightsPanel';
+import { MicPanel } from './components/Mic/MicPanel';
 import { LibraryPanel } from './components/Library/LibraryPanel';
 import { CratesPanel } from './components/Library/CratesPanel';
 import { MacrosPanel } from './components/Macros/MacrosPanel';
@@ -147,6 +148,7 @@ export function App() {
           <SequencerPanel />
           <LoopStationPanel />
           <LightsPanel />
+          <MicPanel />
           <AutoDjPanel />
           <CopilotPanel />
           <RecorderPanel />
@@ -174,7 +176,10 @@ export function App() {
             <AutoDjPanel />
           </div>
 
-          <LightsPanel />
+          <div className="row-2col">
+            <LightsPanel />
+            <MicPanel />
+          </div>
 
           <RecorderPanel />
 

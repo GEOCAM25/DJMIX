@@ -5,6 +5,7 @@ import { Sampler } from './Sampler';
 import { StepSequencer } from './StepSequencer';
 import { LoopStation } from './LoopStation';
 import { LightEngine } from '../lights/LightEngine';
+import { MicInput } from './MicInput';
 import { createDrumSamples } from './synthSamples';
 import { Recorder } from './Recorder';
 import { CueBus, listAudioOutputs, promptSelectOutput, type AudioOutputDevice } from './CueBus';
@@ -58,6 +59,7 @@ export class AudioEngine {
   readonly sequencer: StepSequencer;
   readonly loops: LoopStation;
   readonly lights: LightEngine;
+  readonly mic: MicInput;
   readonly recorder: Recorder;
   readonly analyser: AnalyserNode;
   readonly cueBus: CueBus;
@@ -122,6 +124,10 @@ export class AudioEngine {
 
     // ── Luces reactivas (leen el analizador del máster) ────────────────────
     this.lights = new LightEngine(this.analyser);
+
+    // ── Micrófono / voz en vivo (entra al máster: se oye y se graba) ────────
+    this.mic = new MicInput(this.ctx);
+    this.mic.output.connect(this.masterGain);
 
     // ── Canales / decks ───────────────────────────────────────────────────
     this.channels = {
