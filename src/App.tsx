@@ -12,6 +12,7 @@ import { CopilotPanel } from './components/Copilot/CopilotPanel';
 import { AutoDjPanel } from './components/AutoDj/AutoDjPanel';
 import { SettingsPanel } from './components/Settings/SettingsPanel';
 import { Visualizer } from './components/Visualizer/Visualizer';
+import { OnboardingTour } from './components/Onboarding/OnboardingTour';
 import { useInstallPrompt } from './pwa/pwa';
 
 /** Detecta pantallas de teléfono para activar el layout con pestañas. */
@@ -180,6 +181,7 @@ export function App() {
 
       {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
       {showVisualizer && <Visualizer onClose={() => setShowVisualizer(false)} />}
+      <OnboardingTour />
 
       <footer style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: 11, padding: '8px 0 20px' }}>
         BEAT DJ — Creado por Ricardo Soto

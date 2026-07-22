@@ -21,7 +21,8 @@ export type SettingKey =
   | 'midiMappings'
   | 'seqPattern'
   | 'audioStyle'
-  | 'smartCrates';
+  | 'smartCrates'
+  | 'onboarded';
 
 export async function getSetting<T = unknown>(key: SettingKey): Promise<T | undefined> {
   const db = await getDB();

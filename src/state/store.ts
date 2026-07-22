@@ -209,9 +209,14 @@ interface StoreState {
   // Tema / skin activo
   theme: string;
 
+  /** ¿Mostrar el tour de bienvenida? */
+  showTour: boolean;
+
   // ── Ciclo de vida ─────────────────────────────────────────────────────
   init: () => Promise<void>;
   setTheme: (id: string) => void;
+  /** Abre/cierra el tour; al cerrarlo marca la app como "onboarded". */
+  setShowTour: (v: boolean) => void;
 
   // ── Importación / carga ───────────────────────────────────────────────
   importFiles: (files: File[]) => Promise<void>;
@@ -401,6 +406,7 @@ export const useStore = create<StoreState>((set, get) => ({
   driveToken: null,
   driveFiles: [],
   theme: DEFAULT_THEME_ID,
+  showTour: false,
 
   async init() {
     if (get().started) return;
@@ -486,6 +492,10 @@ export const useStore = create<StoreState>((set, get) => ({
       set((s) => ({ loops: { ...s.loops, slots: engine.loops.getStates() } })),
     );
 
+    // ── Tour de bienvenida en el primer arranque ───────────────────────────
+    const onboarded = await getSetting<boolean>('onboarded');
+    if (!onboarded) set({ showTour: true });
+
     await Promise.all([get().refreshLibrary(), get().refreshMixes()]);
 
     // ── Media Session (controles del sistema / segundo plano) ──────────────
@@ -551,6 +561,11 @@ export const useStore = create<StoreState>((set, get) => ({
     applyTheme(id);
     void setSetting('theme', id);
     set({ theme: id });
+  },
+
+  setShowTour(v) {
+    set({ showTour: v });
+    if (!v) void setSetting('onboarded', true);
   },
 
   async importFiles(files) {

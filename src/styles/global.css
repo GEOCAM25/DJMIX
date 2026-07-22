@@ -702,6 +702,59 @@ input[type='range'] {
   pointer-events: none;
 }
 
+/* ── Tour de bienvenida (onboarding) ─────────────────────────────────────── */
+.tour-root {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  pointer-events: none;
+}
+.tour-dim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+}
+.tour-spot {
+  position: fixed;
+  border-radius: 12px;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.72), 0 0 0 2px var(--accent-a);
+  transition: all 0.25s ease;
+}
+.tour-tip {
+  position: fixed;
+  width: 320px;
+  max-width: calc(100vw - 24px);
+  background: var(--bg-elev);
+  border: 1px solid var(--accent-a);
+  border-radius: 12px;
+  padding: 14px 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+}
+.tour-tip .tour-step {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+.tour-tip h4 {
+  margin: 4px 0 6px;
+  font-size: 16px;
+}
+.tour-tip p {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.45;
+}
+.tour-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tour-actions .spacer {
+  flex: 1;
+}
+
 /* ── Live Looping ────────────────────────────────────────────────────────── */
 .loop-grid {
   display: grid;

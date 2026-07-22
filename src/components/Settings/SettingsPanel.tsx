@@ -14,6 +14,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
   const saveApiKeys = useStore((s) => s.saveApiKeys);
   const theme = useStore((s) => s.theme);
   const setTheme = useStore((s) => s.setTheme);
+  const setShowTour = useStore((s) => s.setShowTour);
   const [ytKey, setYtKey] = useState(settings.youtubeApiKey);
   const [aiKey, setAiKey] = useState(settings.aiApiKey);
   const [usage, setUsage] = useState({ usage: 0, quota: 0 });
@@ -88,6 +89,12 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
         <MidiSection />
 
         <BackupSection />
+
+        <div style={{ marginTop: 16, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+          <button className="mini-btn" onClick={() => { onClose(); setShowTour(true); }}>
+            🧭 Ver tutorial de bienvenida
+          </button>
+        </div>
 
         <div className="row" style={{ marginTop: 16 }}>
           <div className="spacer" />

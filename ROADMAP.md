@@ -47,7 +47,7 @@ actualiza el link en vivo (GitHub Pages) automáticamente.
 - [ ] Línea de tiempo para alinear voz + música
 - [ ] **Vocal Remover / stems** con ONNX Runtime Web (cliente, sin servidor)
 - [ ] **Time-stretching** (cambiar BPM sin alterar el tono)
-- [ ] Onboarding con tour guiado (react-joyride / intro.js)
+- [x] Onboarding con tour guiado (spotlight propio, sin dependencias; reabrible desde Ajustes)
 
 ## ⏳ Transmisión y Respaldo
 - [x] Respaldo en la nube (export/import de IndexedDB a JSON; Google Drive appDataFolder vía OAuth2 cliente, sin backend)
