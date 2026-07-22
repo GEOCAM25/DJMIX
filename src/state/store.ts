@@ -15,6 +15,8 @@ import { computeSmartWaveform } from '../analysis/smartWaveform';
 import { detectSmartCues } from '../analysis/smartCues';
 import { sliceBuffer } from '../analysis/slicer';
 import { createDrumSamples } from '../audio/synthSamples';
+import { MidiController, type MidiMessage } from '../midi/MidiController';
+import { applyMidiTarget, controlKey, MIDI_TARGETS } from '../midi/mappings';
 import {
   saveTrack,
   listTracks,
@@ -29,6 +31,14 @@ import { resolveAiKey, resolveYouTubeKey, setSetting, getSetting } from '../stor
 import type { MixMeta, TrackMeta } from '../storage/db';
 import { makeAIProvider, type AIProvider } from '../ai/AIProvider';
 import { analyzeTransition, rankLibrary, recommendYouTube, type TransitionAdvice, type TrackSuggestion } from '../ai/copilot';
+
+/**
+ * Controlador MIDI vivo (fuera del estado reactivo: es una clase con callbacks).
+ * midiLastValue guarda el último valor por control para detectar el flanco de
+ * subida de los botones (play/cue/sync) y no dispararlos dos veces.
+ */
+let midiController: MidiController | null = null;
+const midiLastValue = new Map<string, number>();
 
 export interface DeckUIState {
   trackId: string | null;
@@ -95,6 +105,17 @@ interface StoreState {
   sidechain: { enabled: boolean; amount: number };
   /** Etiquetas de los pads del sampler (null = batería por defecto). */
   samplerLabels: string[] | null;
+
+  // Controladores MIDI (Web MIDI API + mapeo CC/nota con MIDI Learn)
+  midi: {
+    supported: boolean;
+    enabled: boolean;
+    inputs: string[];
+    /** Destino que está "aprendiendo" ahora mismo (o null). */
+    learning: string | null;
+    /** Diccionario controlKey → id de destino. */
+    mappings: Record<string, string>;
+  };
 
   // Pre-escucha (Cue de audífonos)
   cueMonitor: Record<DeckId, boolean>;
@@ -198,6 +219,15 @@ interface StoreState {
   autoSlice: (deck: DeckId) => void;
   resetSampler: () => void;
 
+  // ── MIDI (Web MIDI API) ──────────────────────────────────────────────────
+  /** Solicita acceso MIDI y engancha el controlador (acción del usuario). */
+  initMidi: () => Promise<void>;
+  /** Empieza a "aprender": el próximo control físico se asigna a `targetId`. */
+  startMidiLearn: (targetId: string) => void;
+  cancelMidiLearn: () => void;
+  /** Borra el mapeo asociado a un destino. */
+  clearMidiMapping: (targetId: string) => void;
+
   // ── Grabación ────────────────────────────────────────────────────────────
   startRecording: (mode: 'master' | 'tab') => Promise<void>;
   stopRecording: (name: string) => Promise<void>;
@@ -237,6 +267,13 @@ export const useStore = create<StoreState>((set, get) => ({
   fx: { reverb: 0, echo: 0, filter: 0 },
   sidechain: { enabled: false, amount: 14 },
   samplerLabels: null,
+  midi: {
+    supported: typeof navigator !== 'undefined' && typeof navigator.requestMIDIAccess === 'function',
+    enabled: false,
+    inputs: [],
+    learning: null,
+    mappings: {},
+  },
 
   cueMonitor: { A: false, B: false },
   cueDevices: [],
@@ -308,6 +345,13 @@ export const useStore = create<StoreState>((set, get) => ({
     if (savedTheme) {
       applyTheme(savedTheme);
       set({ theme: savedTheme });
+    }
+
+    // ── Restaurar mapeos MIDI guardados (no abre acceso hasta que el usuario
+    //     pulse "Activar MIDI"; solo recupera las asignaciones). ─────────────
+    const savedMidi = await getSetting<Record<string, string>>('midiMappings');
+    if (savedMidi && typeof savedMidi === 'object') {
+      set((s) => ({ midi: { ...s.midi, mappings: savedMidi } }));
     }
 
     await Promise.all([get().refreshLibrary(), get().refreshMixes()]);
@@ -863,6 +907,103 @@ export const useStore = create<StoreState>((set, get) => ({
       createDrumSamples(engine.ctx).forEach((p) => engine.sampler.setPad(p));
     }
     set({ samplerLabels: null });
+  },
+
+  // ── MIDI (Web MIDI API) ──────────────────────────────────────────────────
+  async initMidi() {
+    const midi = get().midi;
+    if (!midi.supported) {
+      set({
+        status: {
+          busy: false,
+          message: 'Tu navegador no soporta Web MIDI. Usa Chrome/Edge de escritorio.',
+          progress: 0,
+        },
+      });
+      return;
+    }
+    if (midiController) {
+      set({ midi: { ...get().midi, enabled: true } });
+      return;
+    }
+    const controller = new MidiController();
+
+    // Handler de cada mensaje entrante: aprende o aplica el mapeo.
+    const handleMidi = (msg: MidiMessage) => {
+      const key = controlKey(msg.kind, msg.channel, msg.control);
+      const current = get().midi;
+
+      // MIDI Learn: asigna este control físico al destino en aprendizaje.
+      if (current.learning) {
+        const mappings: Record<string, string> = {};
+        // Conserva los demás mapeos salvo los que apunten a este destino o
+        // usen este mismo control (para reasignar limpio).
+        for (const [k, v] of Object.entries(current.mappings)) {
+          if (v === current.learning || k === key) continue;
+          mappings[k] = v;
+        }
+        mappings[key] = current.learning;
+        void setSetting('midiMappings', mappings);
+        set({ midi: { ...get().midi, mappings, learning: null } });
+        return;
+      }
+
+      const targetId = current.mappings[key];
+      if (!targetId) return;
+      const target = MIDI_TARGETS.find((t) => t.id === targetId);
+      if (!target) return;
+
+      if (target.kind === 'button') {
+        // Botones: dispara solo en el flanco de subida (evita doble disparo con
+        // el note-off o con un CD que manda 127 y luego 0).
+        const prev = midiLastValue.get(key) ?? 0;
+        midiLastValue.set(key, msg.value);
+        if (prev < 0.5 && msg.value >= 0.5) applyMidiTarget(targetId, 1, get());
+      } else {
+        midiLastValue.set(key, msg.value);
+        applyMidiTarget(targetId, msg.value, get());
+      }
+    };
+
+    try {
+      const ok = await controller.init(handleMidi, (inputs) =>
+        set((s) => ({ midi: { ...s.midi, inputs } })),
+      );
+      if (!ok) {
+        set({ status: { busy: false, message: 'No se pudo activar MIDI.', progress: 0 } });
+        return;
+      }
+      midiController = controller;
+      set({
+        midi: { ...get().midi, enabled: true, inputs: controller.inputs },
+        status: {
+          busy: false,
+          message: controller.inputs.length
+            ? `MIDI activo: ${controller.inputs.join(', ')}`
+            : 'MIDI activo (conecta un controlador).',
+          progress: 1,
+        },
+      });
+    } catch (err) {
+      set({ status: { busy: false, message: `MIDI: ${(err as Error).message}`, progress: 0 } });
+    }
+  },
+
+  startMidiLearn(targetId) {
+    set((s) => ({ midi: { ...s.midi, learning: targetId } }));
+  },
+
+  cancelMidiLearn() {
+    set((s) => ({ midi: { ...s.midi, learning: null } }));
+  },
+
+  clearMidiMapping(targetId) {
+    const mappings: Record<string, string> = {};
+    for (const [k, v] of Object.entries(get().midi.mappings)) {
+      if (v !== targetId) mappings[k] = v;
+    }
+    void setSetting('midiMappings', mappings);
+    set((s) => ({ midi: { ...s.midi, mappings } }));
   },
 
   async startRecording(mode) {

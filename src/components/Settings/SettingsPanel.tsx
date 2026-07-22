@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useStore } from '../../state/store';
 import { getStorageEstimate } from '../../storage/db';
 import { BackupSection } from '../Backup/BackupSection';
+import { MidiSection } from '../Midi/MidiSection';
 import { THEMES } from '../../theme/themes';
 
 /**
@@ -83,6 +84,8 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
             </div>
           )}
         </div>
+
+        <MidiSection />
 
         <BackupSection />
 
