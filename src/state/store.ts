@@ -6,6 +6,7 @@ import { decodeFileToAudio } from '../media/decode';
 import { extractVideoId, searchYouTube } from '../media/youtube';
 import { buildStemsZip, downloadBlob, type Stem } from '../media/exportProject';
 import { SessionVideoRecorder } from '../media/SessionVideoRecorder';
+import { enablePlaybackAudio, reassertPlaybackAudio } from '../audio/iosAudio';
 import { setupMediaSession, updateMediaSession } from '../media/mediaSession';
 import { exportBackupBlob, exportBackup, parseBackupFile, importBackup } from '../storage/backup';
 import { connectDrive, driveUpload, driveList, driveDownload, type DriveFile } from '../cloud/googleDrive';
@@ -464,6 +465,9 @@ export const useStore = create<StoreState>((set, get) => ({
 
   async init() {
     if (get().started) return;
+    // Dentro del gesto del usuario: hace que el audio suene aunque el teléfono
+    // esté en silencio/vibrar (iOS respeta el interruptor de timbre por defecto).
+    enablePlaybackAudio();
     const engine = new AudioEngine();
     await engine.resume();
 
@@ -576,9 +580,13 @@ export const useStore = create<StoreState>((set, get) => ({
         get().seek(id, 0);
       },
     });
-    // Reanudar el contexto de audio al volver a la app (política de background).
+    // Reanudar el contexto de audio al volver a la app (política de background) y
+    // re-afirmar el modo "playback" (iOS puede reiniciar la sesión de audio).
     document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) void engine.resume();
+      if (!document.hidden) {
+        void engine.resume();
+        reassertPlaybackAudio();
+      }
     });
 
     // Bucle de actualización de posiciones (≈30 fps) para la UI.

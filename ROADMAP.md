@@ -70,6 +70,9 @@ actualiza el link en vivo (GitHub Pages) automáticamente.
 ## ✅ Reproducción & almacenamiento
 - [x] Media Session (controles del sistema / segundo plano best-effort) + reanudar el
       AudioContext al volver a la app
+- [x] **Sonar en SILENCIO/VIBRAR (iOS)**: sesión de audio "playback" (Safari 16.4+) +
+      respaldo con `<audio>` silencioso en bucle, para que el secuenciador/sampler/efectos
+      suenen aunque el interruptor de timbre esté en silencio
 - [x] Tope de **50 pistas** locales (FIFO: borra las más antiguas) + contador X/50
 - [x] Auto-DJ con **efectos** en la transición (echo + reverb) para mezclas más fluidas
 
