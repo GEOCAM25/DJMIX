@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useStore } from '../../state/store';
 import { Knob } from '../ui/Knob';
 import { createDrumSamples } from '../../audio/synthSamples';
+import { AUDIO_STYLES } from '../../audio/Effects';
 import type { SamplePad } from '../../audio/Sampler';
 
 /**
@@ -20,6 +21,8 @@ export function EffectsPanel() {
   const samplerLabels = useStore((s) => s.samplerLabels);
   const autoSlice = useStore((s) => s.autoSlice);
   const resetSampler = useStore((s) => s.resetSampler);
+  const audioStyle = useStore((s) => s.audioStyle);
+  const setAudioStyle = useStore((s) => s.setAudioStyle);
   const [pads, setPads] = useState<SamplePad[]>([]);
 
   // Cargar los samples sintéticos por defecto en el sampler una sola vez.
@@ -43,6 +46,27 @@ export function EffectsPanel() {
           onChange={setEcho} format={(v) => `${Math.round(v * 100)}%`} />
         <Knob label="Filtro" value={fx.filter} min={-1} max={1} resetTo={0}
           onChange={setMasterFilter} format={(v) => (Math.abs(v) < 0.02 ? 'off' : v < 0 ? 'LP' : 'HP')} />
+      </div>
+
+      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, marginBottom: 12 }}>
+        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+          <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>🎚 Estilo (color de género)</span>
+          <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
+            {AUDIO_STYLES.find((st) => st.id === audioStyle)?.desc}
+          </span>
+        </div>
+        <div className="style-picker">
+          {AUDIO_STYLES.map((st) => (
+            <button
+              key={st.id}
+              className={audioStyle === st.id ? 'active' : ''}
+              onClick={() => setAudioStyle(st.id)}
+              title={st.desc}
+            >
+              {st.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div

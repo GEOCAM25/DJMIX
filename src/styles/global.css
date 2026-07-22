@@ -528,6 +528,23 @@ input[type='range'] {
   background: var(--accent);
 }
 
+/* ── Estilo DSP (Audio Style Transfer) ───────────────────────────────────── */
+.style-picker {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.style-picker button {
+  padding: 8px 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.style-picker button.active {
+  border-color: var(--accent-a);
+  background: linear-gradient(180deg, rgba(34, 211, 238, 0.18), rgba(167, 139, 250, 0.14));
+  color: var(--text);
+}
+
 /* ── Secuenciador de pasos (drum machine) ────────────────────────────────── */
 .bpm-stepper {
   display: flex;

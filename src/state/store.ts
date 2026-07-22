@@ -120,6 +120,8 @@ interface StoreState {
   crossfade: number;
   master: number;
   fx: { reverb: number; echo: number; filter: number };
+  /** Preset de "estilo" DSP del máster (off/lofi/club/ambient). */
+  audioStyle: string;
   sidechain: { enabled: boolean; amount: number };
   /** Etiquetas de los pads del sampler (null = batería por defecto). */
   samplerLabels: string[] | null;
@@ -238,6 +240,8 @@ interface StoreState {
   setReverb: (v: number) => void;
   setEcho: (v: number) => void;
   setMasterFilter: (v: number) => void;
+  /** Aplica un preset de estilo DSP (Audio Style Transfer). */
+  setAudioStyle: (id: string) => void;
 
   // ── Smart EQ / Sidechain ────────────────────────────────────────────────
   toggleSidechain: () => void;
@@ -303,6 +307,7 @@ export const useStore = create<StoreState>((set, get) => ({
   crossfade: 0,
   master: 0.85,
   fx: { reverb: 0, echo: 0, filter: 0 },
+  audioStyle: 'off',
   sidechain: { enabled: false, amount: 14 },
   samplerLabels: null,
   midi: {
@@ -404,6 +409,13 @@ export const useStore = create<StoreState>((set, get) => ({
       }));
     } else {
       engine.sequencer.setRows(get().sequencer.rows);
+    }
+
+    // ── Restaurar estilo DSP del máster ────────────────────────────────────
+    const savedStyle = await getSetting<string>('audioStyle');
+    if (savedStyle) {
+      engine.effects.setStyle(savedStyle);
+      set({ audioStyle: savedStyle });
     }
 
     await Promise.all([get().refreshLibrary(), get().refreshMixes()]);
@@ -914,6 +926,11 @@ export const useStore = create<StoreState>((set, get) => ({
   setMasterFilter(v) {
     get().engine?.effects.setFilter(v);
     set((s) => ({ fx: { ...s.fx, filter: v } }));
+  },
+  setAudioStyle(id) {
+    get().engine?.effects.setStyle(id);
+    void setSetting('audioStyle', id);
+    set({ audioStyle: id });
   },
 
   toggleSidechain() {

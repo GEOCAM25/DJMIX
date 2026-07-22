@@ -64,7 +64,7 @@ actualiza el link en vivo (GitHub Pages) automáticamente.
 - [x] Smart Cues (análisis de energía → cue points automáticos al cargar la pista)
 - [ ] AI Mood Tagger (worker: features de audio → tags de ánimo → IndexedDB para Smart Crates)
 - [ ] Copiloto Lírico (panel lateral de letras con chat IA: versos, rimas, estructura)
-- [ ] Audio Style Transfer (filtros de género por DSP: Lo-Fi, Club, Ambient)
+- [x] Audio Style Transfer (filtros de género por DSP: Lo-Fi, Club, Ambient)
 
 ## ✅ Reproducción & almacenamiento
 - [x] Media Session (controles del sistema / segundo plano best-effort) + reanudar el
