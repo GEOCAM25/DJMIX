@@ -17,6 +17,9 @@ export function EffectsPanel() {
   const sidechain = useStore((s) => s.sidechain);
   const toggleSidechain = useStore((s) => s.toggleSidechain);
   const setSidechainAmount = useStore((s) => s.setSidechainAmount);
+  const samplerLabels = useStore((s) => s.samplerLabels);
+  const autoSlice = useStore((s) => s.autoSlice);
+  const resetSampler = useStore((s) => s.resetSampler);
   const [pads, setPads] = useState<SamplePad[]>([]);
 
   // Cargar los samples sintéticos por defecto en el sampler una sola vez.
@@ -65,15 +68,35 @@ export function EffectsPanel() {
         />
       </div>
 
+      <div className="row" style={{ justifyContent: 'space-between', marginBottom: 8 }}>
+        <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>
+          {samplerLabels ? '🔪 Pads = cortes de la pista' : 'Sampler (batería)'}
+        </span>
+        <div className="row" style={{ gap: 6 }}>
+          <button className="mini-btn" onClick={() => autoSlice('A')} title="Cortar el Deck A en 8 pads por transitorios">
+            Cortar A
+          </button>
+          <button className="mini-btn" onClick={() => autoSlice('B')} title="Cortar el Deck B en 8 pads por transitorios">
+            Cortar B
+          </button>
+          {samplerLabels && (
+            <button className="mini-btn" onClick={resetSampler} title="Volver a la batería sintética">
+              Batería
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="pad-grid">
-        {pads.map((p) => (
+        {pads.map((p, i) => (
           <button key={p.id} className="pad" onPointerDown={() => trigger(p.id)}>
-            {p.label}
+            {samplerLabels ? samplerLabels[i] ?? '—' : p.label}
           </button>
         ))}
       </div>
       <small className="hint" style={{ display: 'block', marginTop: 8 }}>
-        Los samples son sintéticos (sin archivos externos). Dispara con clic o toca los pads.
+        Dispara con clic o toca los pads. “Cortar A/B” trocea la pista cargada por sus
+        golpes y la mapea a los pads para tocarla en vivo.
       </small>
     </div>
   );

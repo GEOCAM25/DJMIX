@@ -13,6 +13,8 @@ import { detectBpm } from '../analysis/bpm';
 import { detectKey } from '../analysis/key';
 import { computeSmartWaveform } from '../analysis/smartWaveform';
 import { detectSmartCues } from '../analysis/smartCues';
+import { sliceBuffer } from '../analysis/slicer';
+import { createDrumSamples } from '../audio/synthSamples';
 import {
   saveTrack,
   listTracks,
@@ -91,6 +93,8 @@ interface StoreState {
   master: number;
   fx: { reverb: number; echo: number; filter: number };
   sidechain: { enabled: boolean; amount: number };
+  /** Etiquetas de los pads del sampler (null = batería por defecto). */
+  samplerLabels: string[] | null;
 
   // Pre-escucha (Cue de audífonos)
   cueMonitor: Record<DeckId, boolean>;
@@ -190,6 +194,10 @@ interface StoreState {
   toggleSidechain: () => void;
   setSidechainAmount: (db: number) => void;
 
+  // ── Auto-Slicer (cortar una pista en pads) ──────────────────────────────
+  autoSlice: (deck: DeckId) => void;
+  resetSampler: () => void;
+
   // ── Grabación ────────────────────────────────────────────────────────────
   startRecording: (mode: 'master' | 'tab') => Promise<void>;
   stopRecording: (name: string) => Promise<void>;
@@ -228,6 +236,7 @@ export const useStore = create<StoreState>((set, get) => ({
   master: 0.85,
   fx: { reverb: 0, echo: 0, filter: 0 },
   sidechain: { enabled: false, amount: 14 },
+  samplerLabels: null,
 
   cueMonitor: { A: false, B: false },
   cueDevices: [],
@@ -821,6 +830,39 @@ export const useStore = create<StoreState>((set, get) => ({
   setSidechainAmount(db) {
     get().engine?.setSidechainAmount(db);
     set((s) => ({ sidechain: { ...s.sidechain, amount: db } }));
+  },
+
+  autoSlice(deck) {
+    const { engine } = get();
+    if (!engine) return;
+    const buffer = engine.getDeckBuffer(deck);
+    if (!buffer) {
+      set({ status: { busy: false, message: `Carga una pista en el Deck ${deck} para cortarla.`, progress: 0 } });
+      return;
+    }
+    const slices = sliceBuffer(engine.ctx, buffer, 8);
+    if (slices.length === 0) {
+      set({ status: { busy: false, message: 'No se detectaron cortes en la pista.', progress: 0 } });
+      return;
+    }
+    slices.forEach((s, i) =>
+      engine.sampler.setPad({ id: `pad-${i}`, label: s.label, buffer: s.buffer, gain: 0.9, loop: false }),
+    );
+    // Rellenar los pads restantes (si hubo <8 cortes) con silencio inofensivo.
+    const labels: string[] = slices.map((s) => s.label);
+    for (let i = slices.length; i < 8; i++) labels.push('—');
+    set({
+      samplerLabels: labels,
+      status: { busy: false, message: `Deck ${deck} cortado en ${slices.length} pads.`, progress: 1 },
+    });
+  },
+
+  resetSampler() {
+    const { engine } = get();
+    if (engine) {
+      createDrumSamples(engine.ctx).forEach((p) => engine.sampler.setPad(p));
+    }
+    set({ samplerLabels: null });
   },
 
   async startRecording(mode) {
