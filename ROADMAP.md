@@ -70,9 +70,11 @@ actualiza el link en vivo (GitHub Pages) automáticamente.
 - [ ] Mover procesamiento pesado (BPM/key/FFmpeg/ONNX) a **Web Workers**
 
 ## ✅ UX móvil
-- [x] Consola horizontal en smartphone: **auto-rotación** (bloqueo de orientación en Android
-      + rotación por CSS universal), sin cartel de "girá el teléfono"; viewport y touch
-- [ ] Pulido de diseño móvil (paneles inferiores menos "separados", controles más llamativos)
+- [x] Layout de teléfono por **pestañas** (Deck A / Mezcla / Deck B) a ancho completo,
+      100% del ancho (sin scroll horizontal), paneles apilados y menos espacios muertos
+- [x] Controles táctiles grandes (perillas/faders ≥44px) con `touch-action: none`
+      (sin conflicto con el scroll)
+- [ ] Más pulido visual (animaciones, jog wheels, skins) — continuo
 
 ## ⏳ Marca, empaquetado y v2
 - [x] Logo de marca del usuario (barra, pantalla de inicio e iconos PWA)

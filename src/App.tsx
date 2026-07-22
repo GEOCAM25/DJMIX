@@ -9,7 +9,21 @@ import { CopilotPanel } from './components/Copilot/CopilotPanel';
 import { AutoDjPanel } from './components/AutoDj/AutoDjPanel';
 import { SettingsPanel } from './components/Settings/SettingsPanel';
 import { Visualizer } from './components/Visualizer/Visualizer';
-import { useInstallPrompt, lockLandscape } from './pwa/pwa';
+import { useInstallPrompt } from './pwa/pwa';
+
+/** Detecta pantallas de teléfono para activar el layout con pestañas. */
+function useIsMobile(): boolean {
+  const [mobile, setMobile] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(max-width: 900px)').matches : false,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 900px)');
+    const onChange = () => setMobile(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return mobile;
+}
 
 /**
  * Layout principal del estudio DJMIX.
@@ -26,6 +40,8 @@ export function App() {
   const status = useStore((s) => s.status);
   const [showSettings, setShowSettings] = useState(false);
   const [showVisualizer, setShowVisualizer] = useState(false);
+  const [deckTab, setDeckTab] = useState<'A' | 'mix' | 'B'>('mix');
+  const isMobile = useIsMobile();
   const { available: canInstall, install } = useInstallPrompt();
 
   // Cerrar el visualizador con Esc.
@@ -53,10 +69,7 @@ export function App() {
           <button
             className="primary"
             style={{ fontSize: 16, padding: '12px 22px', marginTop: 8 }}
-            onClick={() => {
-              void lockLandscape();
-              void init();
-            }}
+            onClick={() => void init()}
           >
             ▶ Entrar al estudio
           </button>
@@ -94,29 +107,65 @@ export function App() {
         </div>
       </div>
 
-      <div className="decks-row main-decks">
-        <DeckPanel id="A" />
-        <MixerPanel />
-        <DeckPanel id="B" />
-      </div>
+      {isMobile ? (
+        <>
+          {/* Consola por pestañas en teléfono: un panel a ancho completo por vez.
+              Los tres se mantienen montados (display) para no romper el reproductor
+              de YouTube ni el audio al cambiar de pestaña. */}
+          <div className="mtabs">
+            <button className={deckTab === 'A' ? 'on' : ''} onClick={() => setDeckTab('A')}>
+              Deck A
+            </button>
+            <button className={deckTab === 'mix' ? 'on' : ''} onClick={() => setDeckTab('mix')}>
+              Mezcla
+            </button>
+            <button className={deckTab === 'B' ? 'on' : ''} onClick={() => setDeckTab('B')}>
+              Deck B
+            </button>
+          </div>
+          <div style={{ display: deckTab === 'A' ? 'block' : 'none' }}>
+            <DeckPanel id="A" />
+          </div>
+          <div style={{ display: deckTab === 'mix' ? 'block' : 'none' }}>
+            <MixerPanel />
+          </div>
+          <div style={{ display: deckTab === 'B' ? 'block' : 'none' }}>
+            <DeckPanel id="B" />
+          </div>
 
-      <div className="row-2col">
-        <EffectsPanel />
-        <CopilotPanel />
-      </div>
+          <EffectsPanel />
+          <AutoDjPanel />
+          <CopilotPanel />
+          <RecorderPanel />
+          <LibraryPanel />
+        </>
+      ) : (
+        <>
+          <div className="decks-row main-decks">
+            <DeckPanel id="A" />
+            <MixerPanel />
+            <DeckPanel id="B" />
+          </div>
 
-      <div className="row-2col">
-        <AutoDjPanel />
-        <RecorderPanel />
-      </div>
+          <div className="row-2col">
+            <EffectsPanel />
+            <CopilotPanel />
+          </div>
 
-      <LibraryPanel />
+          <div className="row-2col">
+            <AutoDjPanel />
+            <RecorderPanel />
+          </div>
+
+          <LibraryPanel />
+        </>
+      )}
 
       {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
       {showVisualizer && <Visualizer onClose={() => setShowVisualizer(false)} />}
 
       <footer style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: 11, padding: '8px 0 20px' }}>
-        BEAT DJ · Web Audio API · FFmpeg.wasm · IndexedDB — hecho para mezclar libremente.
+        BEAT DJ — Creado por Ricardo Soto
       </footer>
     </div>
   );
