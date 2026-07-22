@@ -10,6 +10,7 @@ import { MicPanel } from './components/Mic/MicPanel';
 import { LibraryPanel } from './components/Library/LibraryPanel';
 import { CratesPanel } from './components/Library/CratesPanel';
 import { MacrosPanel } from './components/Macros/MacrosPanel';
+import { LyricsPanel } from './components/Lyrics/LyricsPanel';
 import { RecorderPanel } from './components/Recorder/RecorderPanel';
 import { CopilotPanel } from './components/Copilot/CopilotPanel';
 import { AutoDjPanel } from './components/AutoDj/AutoDjPanel';
@@ -154,6 +155,7 @@ export function App() {
           <RecorderPanel />
           <CratesPanel />
           <MacrosPanel />
+          <LyricsPanel />
           <LibraryPanel />
         </>
       ) : (
@@ -187,6 +189,8 @@ export function App() {
             <CratesPanel />
             <MacrosPanel />
           </div>
+
+          <LyricsPanel />
 
           <LibraryPanel />
         </>

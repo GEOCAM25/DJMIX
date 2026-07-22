@@ -935,6 +935,79 @@ input[type='range'] {
   gap: 4px;
   margin-top: 4px;
 }
+
+/* ── Copiloto Lírico ─────────────────────────────────────────────────────── */
+.lyrics-area {
+  width: 100%;
+  margin-top: 10px;
+  min-height: 180px;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.lyrics-tools {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 10px;
+}
+@media (max-width: 700px) {
+  .lyrics-tools {
+    grid-template-columns: 1fr;
+  }
+}
+.rhyme-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 8px;
+}
+.rhyme-chip {
+  font-size: 12px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(167, 139, 250, 0.12);
+  color: var(--text);
+}
+.rhyme-chip:hover {
+  border-color: var(--accent-b);
+}
+.lyrics-meter .meter-list {
+  max-height: 160px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.meter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.meter-count {
+  flex: 0 0 auto;
+  min-width: 22px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-a);
+  background: rgba(34, 211, 238, 0.1);
+  border-radius: 5px;
+  padding: 1px 4px;
+}
+.meter-text {
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .mood-tag {
   font-size: 10px;
   padding: 1px 7px;

@@ -64,7 +64,7 @@ actualiza el link en vivo (GitHub Pages) automáticamente.
 ## ⏳ IA Avanzada (coproductor)
 - [x] Smart Cues (análisis de energía → cue points automáticos al cargar la pista)
 - [x] AI Mood Tagger (Web Worker: energía/brillo/dinámica → tags de ánimo → IndexedDB, regla de Smart Crates)
-- [ ] Copiloto Lírico (panel lateral de letras con chat IA: versos, rimas, estructura)
+- [x] Copiloto Lírico (letras ORIGINALES: rimas, sílabas y estructura local + generación IA opcional)
 - [x] Audio Style Transfer (filtros de género por DSP: Lo-Fi, Club, Ambient)
 
 ## ✅ Reproducción & almacenamiento
