@@ -30,19 +30,21 @@ function ChannelStrip({ id }: { id: DeckId }) {
         Canal {id}
       </div>
       {disabled && <small className="hint" style={{ display: 'block', textAlign: 'center' }}>EQ/filtro no aplican a YouTube</small>}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginTop: 8 }}>
-        <Knob label="High" accent={BAND.high} value={channel.eq.high} min={-26} max={6} resetTo={0}
-          onChange={(v) => setEq(id, 'high', v)} format={(v) => `${v.toFixed(0)}dB`} />
-        <Knob label="Mid" accent={BAND.mid} value={channel.eq.mid} min={-26} max={6} resetTo={0}
-          onChange={(v) => setEq(id, 'mid', v)} format={(v) => `${v.toFixed(0)}dB`} />
-        <Knob label="Low" accent={BAND.low} value={channel.eq.low} min={-26} max={6} resetTo={0}
-          onChange={(v) => setEq(id, 'low', v)} format={(v) => `${v.toFixed(0)}dB`} />
-        <Knob label="Filter" accent={BAND.filter} value={channel.filter} min={-1} max={1} resetTo={0}
-          onChange={(v) => setChannelFilter(id, v)} format={(v) => (Math.abs(v) < 0.02 ? 'off' : v < 0 ? 'LP' : 'HP')} />
-        <div className="meter-col">
-          <Fader label="Volumen" vertical value={channel.fader} min={0} max={1}
+      <div style={{ marginTop: 6 }}>
+        <div className="eq-grid">
+          <Knob label="High" accent={BAND.high} value={channel.eq.high} min={-26} max={6} resetTo={0}
+            onChange={(v) => setEq(id, 'high', v)} format={(v) => `${v.toFixed(0)}dB`} />
+          <Knob label="Mid" accent={BAND.mid} value={channel.eq.mid} min={-26} max={6} resetTo={0}
+            onChange={(v) => setEq(id, 'mid', v)} format={(v) => `${v.toFixed(0)}dB`} />
+          <Knob label="Low" accent={BAND.low} value={channel.eq.low} min={-26} max={6} resetTo={0}
+            onChange={(v) => setEq(id, 'low', v)} format={(v) => `${v.toFixed(0)}dB`} />
+          <Knob label="Filter" accent={BAND.filter} value={channel.filter} min={-1} max={1} resetTo={0}
+            onChange={(v) => setChannelFilter(id, v)} format={(v) => (Math.abs(v) < 0.02 ? 'off' : v < 0 ? 'LP' : 'HP')} />
+        </div>
+        <div className="meter-col" style={{ justifyContent: 'center', marginTop: 8 }}>
+          <Fader label="Vol" vertical value={channel.fader} min={0} max={1}
             onChange={(v) => setChannelFader(id, v)} />
-          <VuMeter getLevel={getLevel} height={130} />
+          <VuMeter getLevel={getLevel} height={104} />
         </div>
       </div>
     </div>
@@ -65,53 +67,38 @@ function CueSection() {
   const refreshCueDevices = useStore((s) => s.refreshCueDevices);
 
   return (
-    <div style={{ marginTop: 14, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
-      <div className="row" style={{ justifyContent: 'space-between' }}>
-        <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>🎧 Pre-escucha (Cue)</span>
+    <div style={{ marginTop: 10, borderTop: '1px solid var(--border)', paddingTop: 10 }}>
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>🎧 Pre-escucha (Cue)</span>
         {cueActive && <span className="chip" style={{ color: 'var(--good)' }}>activa</span>}
       </div>
 
       {!cueSupported ? (
-        <small className="hint" style={{ display: 'block', marginTop: 6 }}>
-          Tu navegador no permite una salida de audio secundaria (setSinkId). Usa
-          Chrome o Edge de escritorio para monitorear por audífonos.
+        <small className="hint" style={{ display: 'block', marginTop: 4 }}>
+          Salida de audífonos (setSinkId) no disponible. Usa Chrome/Edge de escritorio.
         </small>
       ) : (
-        <>
-          <div className="row" style={{ marginTop: 8 }}>
-            <select
-              value={cueDeviceId ?? ''}
-              onChange={(e) => setCueDevice(e.target.value)}
-              style={{ flex: 1 }}
-              aria-label="Salida de audífonos"
-            >
-              <option value="">Salida por defecto (parlantes)</option>
-              {cueDevices.map((d) => (
-                <option key={d.deviceId} value={d.deviceId}>
-                  {d.label}
-                </option>
-              ))}
-            </select>
-            <button className="mini-btn" onClick={() => void selectCueOutput()} title="Elegir salida con el diálogo del navegador">
-              Elegir
-            </button>
-            <button className="mini-btn" onClick={() => void refreshCueDevices()} title="Actualizar lista de salidas">
-              ⟳
-            </button>
-          </div>
-          <div style={{ marginTop: 8 }}>
-            <Fader
-              label={`Volumen audífonos ${Math.round(cueVolume * 100)}%`}
-              value={cueVolume}
-              min={0}
-              max={1}
-              onChange={setCueVolume}
-            />
-          </div>
-          <small className="hint" style={{ display: 'block', marginTop: 4 }}>
-            Activa el 🎧 en un Deck para escucharlo aquí, sin importar el crossfader.
-          </small>
-        </>
+        <div className="row" style={{ marginTop: 6, gap: 6, alignItems: 'center' }}>
+          <select
+            value={cueDeviceId ?? ''}
+            onChange={(e) => setCueDevice(e.target.value)}
+            style={{ flex: 1, minWidth: 0 }}
+            aria-label="Salida de audífonos"
+          >
+            <option value="">Parlantes</option>
+            {cueDevices.map((d) => (
+              <option key={d.deviceId} value={d.deviceId}>{d.label}</option>
+            ))}
+          </select>
+          <button className="mini-btn" onClick={() => void selectCueOutput()} title="Elegir salida de audífonos">🎧</button>
+          <button className="mini-btn" onClick={() => void refreshCueDevices()} title="Actualizar salidas">⟳</button>
+          <input
+            type="range" min={0} max={1} step={0.01} value={cueVolume}
+            onChange={(e) => setCueVolume(parseFloat(e.target.value))}
+            aria-label={`Volumen audífonos ${Math.round(cueVolume * 100)}%`}
+            style={{ flex: 1, minWidth: 60 }}
+          />
+        </div>
       )}
     </div>
   );

@@ -19,27 +19,59 @@ import { Visualizer } from './components/Visualizer/Visualizer';
 import { OnboardingTour } from './components/Onboarding/OnboardingTour';
 import { useInstallPrompt } from './pwa/pwa';
 
-/** Detecta pantallas de teléfono para activar el layout con pestañas. */
-function useIsMobile(): boolean {
-  const [mobile, setMobile] = useState(() =>
-    typeof window !== 'undefined' ? window.matchMedia('(max-width: 900px)').matches : false,
-  );
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 900px)');
-    const onChange = () => setMobile(mq.matches);
-    mq.addEventListener('change', onChange);
-    return () => mq.removeEventListener('change', onChange);
-  }, []);
-  return mobile;
+/** Pestañas del "rack" inferior (todo lo que no es la consola principal). */
+const RACK_TABS: Array<{ id: string; label: string }> = [
+  { id: 'lib', label: '📚 Biblioteca' },
+  { id: 'seq', label: '🥁 Ritmo' },
+  { id: 'loop', label: '🔁 Loops' },
+  { id: 'auto', label: '🤖 Auto-DJ' },
+  { id: 'crates', label: '📦 Crates' },
+  { id: 'mic', label: '🎤 Voz' },
+  { id: 'lights', label: '💡 Luces' },
+  { id: 'rec', label: '🎬 Grabar' },
+  { id: 'copilot', label: '🧠 Copiloto' },
+  { id: 'macros', label: '⚙️ Macros' },
+  { id: 'lyrics', label: '✍️ Letras' },
+];
+
+function RackPanel({ id }: { id: string }) {
+  switch (id) {
+    case 'lib':
+      return <LibraryPanel />;
+    case 'seq':
+      return <SequencerPanel />;
+    case 'loop':
+      return <LoopStationPanel />;
+    case 'auto':
+      return <AutoDjPanel />;
+    case 'crates':
+      return <CratesPanel />;
+    case 'mic':
+      return <MicPanel />;
+    case 'lights':
+      return <LightsPanel />;
+    case 'rec':
+      return <RecorderPanel />;
+    case 'copilot':
+      return <CopilotPanel />;
+    case 'macros':
+      return <MacrosPanel />;
+    case 'lyrics':
+      return <LyricsPanel />;
+    default:
+      return null;
+  }
 }
 
 /**
- * Layout principal del estudio DJMIX.
+ * Layout principal de BEAT DJ — "tablero" de DJ, siempre en horizontal.
  *
- * El overlay de inicio cumple dos funciones:
- *  1. Cumplir la política de autoplay: el AudioContext solo arranca tras un
- *     gesto del usuario (el botón "Entrar al estudio").
- *  2. Inicializar el motor de audio, IndexedDB y el proveedor de IA.
+ * Estructura tipo consola real:
+ *   - CONSOLA (siempre visible): Deck A · Mezclador · Deck B + tira de FX/Sampler.
+ *   - RACK (pestañas): biblioteca, ritmo, loops, Auto-DJ, voz, luces, etc.
+ *
+ * En teléfonos en vertical, la app se rota por CSS para presentarse en
+ * horizontal automáticamente (sin mensajes de "gira el teléfono").
  */
 export function App() {
   const started = useStore((s) => s.started);
@@ -48,8 +80,7 @@ export function App() {
   const status = useStore((s) => s.status);
   const [showSettings, setShowSettings] = useState(false);
   const [showVisualizer, setShowVisualizer] = useState(false);
-  const [deckTab, setDeckTab] = useState<'A' | 'mix' | 'B'>('mix');
-  const isMobile = useIsMobile();
+  const [rackTab, setRackTab] = useState('lib');
   const { available: canInstall, install } = useInstallPrompt();
 
   // Cerrar el visualizador con Esc.
@@ -83,7 +114,7 @@ export function App() {
           </button>
           <p style={{ marginTop: 14 }}>
             <small className="hint">
-              Nada se sube a ningún servidor. Todo se procesa y guarda en tu navegador.
+              Se ve mejor en horizontal · Nada se sube a ningún servidor: todo en tu navegador.
             </small>
           </p>
         </div>
@@ -92,7 +123,7 @@ export function App() {
   }
 
   return (
-    <div className="app">
+    <div className="app board">
       <div className="topbar">
         <div className="brand">
           <img src={logoSrc} alt="" className="brand-logo" />
@@ -104,10 +135,10 @@ export function App() {
         </div>
         <div className="status-bar">
           <span className={`dot${recording ? ' rec' : ''}`} />
-          {recording ? 'Grabando sesión…' : status.message || 'Listo'}
+          <span className="status-msg">{recording ? 'Grabando sesión…' : status.message || 'Listo'}</span>
           {canInstall && (
             <button className="mini-btn primary" style={{ marginLeft: 10 }} onClick={() => void install()} title="Instalar app">
-              ⬇<span className="btn-label"> Instalar app</span>
+              ⬇<span className="btn-label"> Instalar</span>
             </button>
           )}
           <button className="mini-btn" style={{ marginLeft: 10 }} onClick={() => setShowVisualizer(true)} title="Visualizador">
@@ -119,90 +150,35 @@ export function App() {
         </div>
       </div>
 
-      {isMobile ? (
-        <>
-          {/* Consola por pestañas en teléfono: un panel a ancho completo por vez.
-              Los tres se mantienen montados (display) para no romper el reproductor
-              de YouTube ni el audio al cambiar de pestaña. */}
-          <div className="mtabs">
-            <button className={deckTab === 'A' ? 'on' : ''} onClick={() => setDeckTab('A')}>
-              Deck A
+      {/* CONSOLA: decks + mezclador + FX, siempre visible como un controlador. */}
+      <div className="console">
+        <div className="console-decks">
+          <DeckPanel id="A" />
+          <MixerPanel />
+          <DeckPanel id="B" />
+        </div>
+        <EffectsPanel />
+      </div>
+
+      {/* RACK inferior con pestañas para el resto de módulos. */}
+      <div className="rack">
+        <div className="rack-tabs">
+          {RACK_TABS.map((t) => (
+            <button key={t.id} className={rackTab === t.id ? 'on' : ''} onClick={() => setRackTab(t.id)}>
+              {t.label}
             </button>
-            <button className={deckTab === 'mix' ? 'on' : ''} onClick={() => setDeckTab('mix')}>
-              Mezcla
-            </button>
-            <button className={deckTab === 'B' ? 'on' : ''} onClick={() => setDeckTab('B')}>
-              Deck B
-            </button>
-          </div>
-          <div style={{ display: deckTab === 'A' ? 'block' : 'none' }}>
-            <DeckPanel id="A" />
-          </div>
-          <div style={{ display: deckTab === 'mix' ? 'block' : 'none' }}>
-            <MixerPanel />
-          </div>
-          <div style={{ display: deckTab === 'B' ? 'block' : 'none' }}>
-            <DeckPanel id="B" />
-          </div>
-
-          <EffectsPanel />
-          <SequencerPanel />
-          <LoopStationPanel />
-          <LightsPanel />
-          <MicPanel />
-          <AutoDjPanel />
-          <CopilotPanel />
-          <RecorderPanel />
-          <CratesPanel />
-          <MacrosPanel />
-          <LyricsPanel />
-          <LibraryPanel />
-        </>
-      ) : (
-        <>
-          <div className="decks-row main-decks">
-            <DeckPanel id="A" />
-            <MixerPanel />
-            <DeckPanel id="B" />
-          </div>
-
-          <div className="row-2col">
-            <EffectsPanel />
-            <CopilotPanel />
-          </div>
-
-          <SequencerPanel />
-
-          <div className="row-2col">
-            <LoopStationPanel />
-            <AutoDjPanel />
-          </div>
-
-          <div className="row-2col">
-            <LightsPanel />
-            <MicPanel />
-          </div>
-
-          <RecorderPanel />
-
-          <div className="row-2col">
-            <CratesPanel />
-            <MacrosPanel />
-          </div>
-
-          <LyricsPanel />
-
-          <LibraryPanel />
-        </>
-      )}
+          ))}
+        </div>
+        <div className="rack-body">
+          <RackPanel id={rackTab} />
+        </div>
+      </div>
 
       {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
       {showVisualizer && <Visualizer onClose={() => setShowVisualizer(false)} />}
       <OnboardingTour />
 
-      <footer style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: 11, padding: '8px 0 20px' }}>
-        BEAT DJ — Creado por Ricardo Soto
-      </footer>
+      <footer className="board-footer">BEAT DJ — Creado por Ricardo Soto</footer>
     </div>
   );
 }

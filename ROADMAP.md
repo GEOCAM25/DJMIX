@@ -77,6 +77,11 @@ actualiza el link en vivo (GitHub Pages) automáticamente.
 - [~] Web Workers: Mood Tagger ya corre en un worker; falta mover BPM/key/FFmpeg
 
 ## ✅ UX móvil
+- [x] **v2 — Consola de DJ (tablero) siempre HORIZONTAL**: decks + mesa + FX juntos como
+      un controlador real, con un "rack" de pestañas debajo para el resto de módulos.
+      En teléfonos en vertical la app se **rota por CSS** para presentarse en horizontal
+      automáticamente (sin mensajes de "gira el teléfono"). Mezclador compacto (EQ 2×2,
+      pre-escucha en una fila) y sampler en tira de 8 pads.
 - [x] Layout de teléfono por **pestañas** (Deck A / Mezcla / Deck B) a ancho completo,
       100% del ancho (sin scroll horizontal), paneles apilados y menos espacios muertos
 - [x] Controles táctiles grandes (perillas/faders ≥44px) con `touch-action: none`
