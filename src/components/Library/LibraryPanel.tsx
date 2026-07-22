@@ -49,6 +49,13 @@ export function LibraryPanel() {
                     {t.bpm ? `${Math.round(t.bpm)} BPM` : '— BPM'} · {t.camelotKey ?? '—'} ·{' '}
                     {(t.size / 1_048_576).toFixed(1)} MB
                   </div>
+                  {t.moodTags && t.moodTags.length > 0 && (
+                    <div className="mood-tags">
+                      {t.moodTags.map((m) => (
+                        <span key={m} className="mood-tag">{m}</span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <button className="mini-btn" onClick={() => loadLocalTrackToDeck('A', t.id)}>▶ A</button>
                 <button className="mini-btn" onClick={() => loadLocalTrackToDeck('B', t.id)}>▶ B</button>

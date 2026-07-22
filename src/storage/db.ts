@@ -32,6 +32,8 @@ export interface TrackMeta {
   duration: number;
   /** Hot cues en segundos. */
   cues: number[];
+  /** Etiquetas de ánimo (AI Mood Tagger); ausente si no se ha analizado. */
+  moodTags?: string[];
   /** Tamaño del blob en bytes (0 para YouTube). */
   size: number;
   createdAt: number;

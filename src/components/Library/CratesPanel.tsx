@@ -7,6 +7,7 @@ import {
   allCamelotCodes,
   type CrateRule,
 } from '../../library/crates';
+import { ALL_MOODS } from '../../analysis/mood';
 
 type RuleType = CrateRule['type'];
 
@@ -22,6 +23,7 @@ export function CratesPanel() {
   const addCrate = useStore((s) => s.addCrate);
   const removeCrate = useStore((s) => s.removeCrate);
   const sendCrateToQueue = useStore((s) => s.sendCrateToQueue);
+  const analyzeMoods = useStore((s) => s.analyzeMoods);
 
   const [name, setName] = useState('');
   const [rules, setRules] = useState<CrateRule[]>([]);
@@ -32,10 +34,17 @@ export function CratesPanel() {
   const [keyCode, setKeyCode] = useState('8A');
   const [titleText, setTitleText] = useState('');
   const [sourceEngine, setSourceEngine] = useState<'local' | 'youtube'>('local');
+  const [mood, setMood] = useState(ALL_MOODS[0]);
 
   const counts = useMemo(
     () => crates.map((c) => crateMatches(c, library).length),
     [crates, library],
+  );
+
+  // Pistas locales sin ánimo analizado (para el botón de análisis).
+  const moodPending = useMemo(
+    () => library.filter((t) => t.engine === 'local' && (!t.moodTags || t.moodTags.length === 0)).length,
+    [library],
   );
 
   const buildRule = (): CrateRule | null => {
@@ -53,6 +62,8 @@ export function CratesPanel() {
         return titleText.trim() ? { type: 'title', text: titleText.trim() } : null;
       case 'source':
         return { type: 'source', engine: sourceEngine };
+      case 'mood':
+        return { type: 'mood', mood };
     }
   };
 
@@ -69,8 +80,15 @@ export function CratesPanel() {
 
   return (
     <div className="panel">
-      <h3>Smart Crates</h3>
-      <small className="hint" style={{ display: 'block', marginBottom: 10 }}>
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+        <h3 style={{ margin: 0 }}>Smart Crates</h3>
+        {moodPending > 0 && (
+          <button className="mini-btn" onClick={() => void analyzeMoods()} title="Analiza el ánimo (energía, brillo, dinámica) de las pistas que aún no lo tienen">
+            🎭 Analizar ánimo ({moodPending})
+          </button>
+        )}
+      </div>
+      <small className="hint" style={{ display: 'block', margin: '4px 0 10px' }}>
         Carpetas por reglas (se combinan con Y). Agrupan tu biblioteca automáticamente.
       </small>
 
@@ -88,6 +106,7 @@ export function CratesPanel() {
             <option value="bpm">BPM</option>
             <option value="energy">Energía</option>
             <option value="key">Clave compatible</option>
+            <option value="mood">Ánimo</option>
             <option value="title">Título</option>
             <option value="source">Fuente</option>
           </select>
@@ -121,6 +140,13 @@ export function CratesPanel() {
                 ) : null,
               )}
             </>
+          )}
+          {ruleType === 'mood' && (
+            <select value={mood} onChange={(e) => setMood(e.target.value)} style={{ width: 'auto' }} aria-label="Ánimo">
+              {ALL_MOODS.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
           )}
           {ruleType === 'title' && (
             <input type="text" placeholder="contiene…" value={titleText} onChange={(e) => setTitleText(e.target.value)} style={{ flex: 1, minWidth: 120 }} />

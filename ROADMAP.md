@@ -62,7 +62,7 @@ actualiza el link en vivo (GitHub Pages) automáticamente.
 
 ## ⏳ IA Avanzada (coproductor)
 - [x] Smart Cues (análisis de energía → cue points automáticos al cargar la pista)
-- [ ] AI Mood Tagger (worker: features de audio → tags de ánimo → IndexedDB para Smart Crates)
+- [x] AI Mood Tagger (Web Worker: energía/brillo/dinámica → tags de ánimo → IndexedDB, regla de Smart Crates)
 - [ ] Copiloto Lírico (panel lateral de letras con chat IA: versos, rimas, estructura)
 - [x] Audio Style Transfer (filtros de género por DSP: Lo-Fi, Club, Ambient)
 
@@ -73,7 +73,7 @@ actualiza el link en vivo (GitHub Pages) automáticamente.
 - [x] Auto-DJ con **efectos** en la transición (echo + reverb) para mezclas más fluidas
 
 ## ⏳ Rendimiento
-- [ ] Mover procesamiento pesado (BPM/key/FFmpeg/ONNX) a **Web Workers**
+- [~] Web Workers: Mood Tagger ya corre en un worker; falta mover BPM/key/FFmpeg
 
 ## ✅ UX móvil
 - [x] Layout de teléfono por **pestañas** (Deck A / Mezcla / Deck B) a ancho completo,

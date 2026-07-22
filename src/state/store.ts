@@ -13,6 +13,7 @@ import { detectBpm } from '../analysis/bpm';
 import { detectKey } from '../analysis/key';
 import { computeSmartWaveform } from '../analysis/smartWaveform';
 import { detectSmartCues } from '../analysis/smartCues';
+import { analyzeMood } from '../analysis/moodClient';
 import { sliceBuffer } from '../analysis/slicer';
 import { createDrumSamples } from '../audio/synthSamples';
 import { MidiController, type MidiMessage } from '../midi/MidiController';
@@ -24,6 +25,7 @@ import {
   listTracks,
   getTrackBlob,
   setTrackCues,
+  setTrackMoods,
   deleteTrack as dbDeleteTrack,
   enforceTrackLimit,
   TRACK_LIMIT,
@@ -289,6 +291,8 @@ interface StoreState {
   // ── Biblioteca ─────────────────────────────────────────────────────────
   refreshLibrary: () => Promise<void>;
   removeTrack: (id: string) => Promise<void>;
+  /** Calcula etiquetas de ánimo para las pistas locales que aún no las tienen. */
+  analyzeMoods: () => Promise<void>;
 
   // ── Smart Crates ─────────────────────────────────────────────────────────
   addCrate: (name: string, rules: CrateRule[]) => void;
@@ -516,6 +520,8 @@ export const useStore = create<StoreState>((set, get) => ({
         );
         set({ status: { busy: true, message: 'Analizando BPM y tonalidad…', progress: 0.95 } });
         const [bpm, key] = await Promise.all([detectBpm(decoded.buffer), detectKey(decoded.buffer)]);
+        // Mood Tagger en Web Worker (no bloquea la UI).
+        const moodTags = await analyzeMood(decoded.buffer, bpm.bpm);
         await saveTrack({
           title: decoded.title,
           engine: 'local',
@@ -524,6 +530,7 @@ export const useStore = create<StoreState>((set, get) => ({
           camelotKey: key.camelot,
           energy: bpm.energy,
           duration: decoded.buffer.duration,
+          moodTags,
           blob: decoded.sourceBlob,
         });
       } catch (err) {
@@ -1241,6 +1248,31 @@ export const useStore = create<StoreState>((set, get) => ({
   async removeTrack(id) {
     await dbDeleteTrack(id);
     await get().refreshLibrary();
+  },
+
+  async analyzeMoods() {
+    const { engine, library } = get();
+    if (!engine) return;
+    const pending = library.filter((t) => t.engine === 'local' && (!t.moodTags || t.moodTags.length === 0));
+    if (pending.length === 0) {
+      set({ status: { busy: false, message: 'Todas las pistas locales ya tienen ánimo.', progress: 1 } });
+      return;
+    }
+    for (let i = 0; i < pending.length; i++) {
+      const track = pending[i];
+      set({ status: { busy: true, message: `Analizando ánimo ${i + 1}/${pending.length}…`, progress: i / pending.length } });
+      try {
+        const blob = await getTrackBlob(track.id);
+        if (!blob) continue;
+        const buffer = await engine.ctx.decodeAudioData(await blob.arrayBuffer());
+        const tags = await analyzeMood(buffer, track.bpm);
+        await setTrackMoods(track.id, tags);
+      } catch {
+        /* pista corrupta o no decodificable; se omite */
+      }
+    }
+    await get().refreshLibrary();
+    set({ status: { busy: false, message: `Ánimo analizado en ${pending.length} pistas.`, progress: 1 } });
   },
 
   // ── Smart Crates ─────────────────────────────────────────────────────────

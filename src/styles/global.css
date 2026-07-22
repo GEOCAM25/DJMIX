@@ -773,6 +773,20 @@ input[type='range'] {
   gap: 4px;
   margin-top: 3px;
 }
+.mood-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.mood-tag {
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  color: var(--accent-b);
+  background: rgba(167, 139, 250, 0.14);
+  border: 1px solid rgba(167, 139, 250, 0.3);
+}
 
 /* ── Biblioteca ──────────────────────────────────────────────────────────── */
 .dropzone {

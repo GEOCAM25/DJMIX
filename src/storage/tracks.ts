@@ -15,6 +15,7 @@ export interface SaveTrackInput {
   energy?: number | null;
   duration: number;
   cues?: number[];
+  moodTags?: string[];
   /** Blob de audio para pistas locales (no aplica a YouTube). */
   blob?: Blob;
 }
@@ -34,6 +35,7 @@ export async function saveTrack(input: SaveTrackInput): Promise<TrackMeta> {
     energy: input.energy ?? null,
     duration: input.duration,
     cues: input.cues ?? [],
+    moodTags: input.moodTags,
     size: input.blob?.size ?? 0,
     createdAt: Date.now(),
   };
@@ -69,6 +71,11 @@ export async function updateTrack(id: string, patch: Partial<TrackMeta>): Promis
 /** Actualiza los hot cues de una pista. */
 export async function setTrackCues(id: string, cues: number[]): Promise<void> {
   await updateTrack(id, { cues });
+}
+
+/** Guarda las etiquetas de ánimo (Mood Tagger) de una pista. */
+export async function setTrackMoods(id: string, moodTags: string[]): Promise<void> {
+  await updateTrack(id, { moodTags });
 }
 
 export async function deleteTrack(id: string): Promise<void> {

@@ -11,7 +11,8 @@ export type CrateRule =
   | { type: 'energy'; min: number } // 0..1
   | { type: 'key'; camelot: string }
   | { type: 'title'; text: string }
-  | { type: 'source'; engine: 'local' | 'youtube' };
+  | { type: 'source'; engine: 'local' | 'youtube' }
+  | { type: 'mood'; mood: string };
 
 export interface SmartCrate {
   id: string;
@@ -34,6 +35,8 @@ export function ruleMatches(track: TrackMeta, rule: CrateRule): boolean {
     }
     case 'source':
       return track.engine === rule.engine;
+    case 'mood':
+      return !!track.moodTags && track.moodTags.includes(rule.mood);
   }
 }
 
@@ -59,6 +62,8 @@ export function describeRule(rule: CrateRule): string {
       return `Título: "${rule.text}"`;
     case 'source':
       return rule.engine === 'local' ? 'Solo locales' : 'Solo YouTube';
+    case 'mood':
+      return `Ánimo: ${rule.mood}`;
   }
 }
 
