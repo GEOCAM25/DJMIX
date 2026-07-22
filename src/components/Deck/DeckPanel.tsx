@@ -65,6 +65,11 @@ export function DeckPanel({ id }: DeckPanelProps) {
         <span className="chip">BPM {effectiveBpm}</span>
         <span className="chip">Tono {deck.camelotKey ?? '—'}</span>
         <span className="chip">Pitch {deck.tempo >= 0 ? '+' : ''}{deck.tempo.toFixed(1)}%</span>
+        {deck.ducking && (
+          <span className="chip" style={{ color: 'var(--warn)', borderColor: 'var(--warn)' }}>
+            SC ⬇ bass
+          </span>
+        )}
       </div>
 
       {/* Reproductor de YouTube (oculto si el deck es local) */}

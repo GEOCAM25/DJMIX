@@ -41,6 +41,8 @@ export interface DeckUIState {
   /** Reparto de energía por columna (graves/medios/agudos) para el color. */
   waveBands: { low: Float32Array; mid: Float32Array; high: Float32Array } | null;
   youtubeId: string | null;
+  /** ¿El Smart EQ está atenuando los graves de este deck ahora mismo? */
+  ducking: boolean;
 }
 
 interface ChannelUIState {
@@ -70,6 +72,7 @@ const emptyDeck = (): DeckUIState => ({
   peaks: null,
   waveBands: null,
   youtubeId: null,
+  ducking: false,
 });
 
 const emptyChannel = (): ChannelUIState => ({ fader: 1, eq: { low: 0, mid: 0, high: 0 }, filter: 0 });
@@ -84,6 +87,7 @@ interface StoreState {
   crossfade: number;
   master: number;
   fx: { reverb: number; echo: number; filter: number };
+  sidechain: { enabled: boolean; amount: number };
 
   // Pre-escucha (Cue de audífonos)
   cueMonitor: Record<DeckId, boolean>;
@@ -177,6 +181,10 @@ interface StoreState {
   setEcho: (v: number) => void;
   setMasterFilter: (v: number) => void;
 
+  // ── Smart EQ / Sidechain ────────────────────────────────────────────────
+  toggleSidechain: () => void;
+  setSidechainAmount: (db: number) => void;
+
   // ── Grabación ────────────────────────────────────────────────────────────
   startRecording: (mode: 'master' | 'tab') => Promise<void>;
   stopRecording: (name: string) => Promise<void>;
@@ -214,6 +222,7 @@ export const useStore = create<StoreState>((set, get) => ({
   crossfade: 0,
   master: 0.85,
   fx: { reverb: 0, echo: 0, filter: 0 },
+  sidechain: { enabled: false, amount: 14 },
 
   cueMonitor: { A: false, B: false },
   cueDevices: [],
@@ -301,8 +310,9 @@ export const useStore = create<StoreState>((set, get) => ({
         const isYt = eng.getEngine(id) === 'youtube';
         const pos = isYt ? eng.getYouTubeDeck(id).position : eng.getDeck(id).position;
         const playing = isYt ? eng.getYouTubeDeck(id).playing : eng.getDeck(id).playing;
-        if (Math.abs(pos - d.position) > 0.03 || playing !== d.playing) {
-          next[id] = { ...d, position: pos, playing };
+        const ducking = eng.getSidechainDuck(id) < -1.5;
+        if (Math.abs(pos - d.position) > 0.03 || playing !== d.playing || ducking !== d.ducking) {
+          next[id] = { ...d, position: pos, playing, ducking };
           changed = true;
         }
       }
@@ -750,6 +760,18 @@ export const useStore = create<StoreState>((set, get) => ({
     set((s) => ({ fx: { ...s.fx, filter: v } }));
   },
 
+  toggleSidechain() {
+    const { engine, sidechain } = get();
+    if (!engine) return;
+    const enabled = !sidechain.enabled;
+    engine.setSidechain(enabled);
+    set({ sidechain: { ...sidechain, enabled } });
+  },
+  setSidechainAmount(db) {
+    get().engine?.setSidechainAmount(db);
+    set((s) => ({ sidechain: { ...s.sidechain, amount: db } }));
+  },
+
   async startRecording(mode) {
     const { engine } = get();
     if (!engine) return;
@@ -809,7 +831,7 @@ export const useStore = create<StoreState>((set, get) => ({
     try {
       const blob = await buildStemsZip(stems, project);
       const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-      downloadBlob(blob, `djmix-project-${stamp}.zip`);
+      downloadBlob(blob, `beat-dj-project-${stamp}.zip`);
       set({ status: { busy: false, message: `ZIP exportado (${stems.length} stems)`, progress: 1 } });
     } catch (err) {
       set({ status: { busy: false, message: `Error al exportar: ${(err as Error).message}`, progress: 0 } });
@@ -831,7 +853,7 @@ export const useStore = create<StoreState>((set, get) => ({
     try {
       const blob = await exportBackupBlob(includeBlobs);
       const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-      downloadBlob(blob, `djmix-backup-${stamp}.json`);
+      downloadBlob(blob, `beat-dj-backup-${stamp}.json`);
       set({ status: { busy: false, message: 'Respaldo descargado', progress: 1 } });
     } catch (err) {
       set({ status: { busy: false, message: `Error al respaldar: ${(err as Error).message}`, progress: 0 } });
@@ -872,7 +894,7 @@ export const useStore = create<StoreState>((set, get) => ({
     try {
       const envelope = await exportBackup(false);
       const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-      await driveUpload(driveToken, `djmix-backup-${stamp}.json`, JSON.stringify(envelope));
+      await driveUpload(driveToken, `beat-dj-backup-${stamp}.json`, JSON.stringify(envelope));
       set({ status: { busy: false, message: 'Respaldo guardado en tu Google Drive', progress: 1 } });
       await get().listDriveBackups();
     } catch (err) {

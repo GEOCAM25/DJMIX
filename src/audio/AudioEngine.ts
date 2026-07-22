@@ -4,6 +4,7 @@ import { MasterEffects } from './Effects';
 import { Sampler } from './Sampler';
 import { Recorder } from './Recorder';
 import { CueBus, listAudioOutputs, promptSelectOutput, type AudioOutputDevice } from './CueBus';
+import { Sidechain } from './Sidechain';
 import type { DeckId, EngineType, EqValues } from './types';
 
 interface Channel {
@@ -39,6 +40,7 @@ export class AudioEngine {
   readonly recorder: Recorder;
   readonly analyser: AnalyserNode;
   readonly cueBus: CueBus;
+  readonly sidechain: Sidechain;
 
   private readonly masterGain: GainNode;
   private readonly limiter: DynamicsCompressorNode;
@@ -90,6 +92,34 @@ export class AudioEngine {
       B: this.makeChannel('B'),
     };
     this.applyCrossfade();
+
+    // ── Smart EQ / Sidechain (auto-ducking de graves) ──────────────────────
+    this.sidechain = new Sidechain({
+      getDeck: (id) => this.channels[id].deck,
+      isLocalPlaying: (id) => this.channels[id].engine === 'local' && this.channels[id].deck.playing,
+      channelGainValue: (id) => this.channelGainValue(id),
+    });
+  }
+
+  /** Ganancia efectiva actual de un canal (curva de crossfade × fader). */
+  private channelGainValue(id: DeckId): number {
+    const x = (this._crossfade + 1) / 2;
+    const g = id === 'A' ? Math.cos((x * Math.PI) / 2) : Math.sin((x * Math.PI) / 2);
+    return g * this.channels[id].fader;
+  }
+
+  // ── Smart EQ / Sidechain ───────────────────────────────────────────────────
+  setSidechain(on: boolean): void {
+    this.sidechain.setEnabled(on);
+  }
+
+  setSidechainAmount(db: number): void {
+    this.sidechain.setAmount(db);
+  }
+
+  /** Ducking de graves actual de un deck en dB (0 = sin ducking). */
+  getSidechainDuck(id: DeckId): number {
+    return this.channels[id].deck.sidechainLowDb;
   }
 
   private makeChannel(id: DeckId): Channel {

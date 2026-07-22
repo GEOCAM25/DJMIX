@@ -31,8 +31,8 @@ actualiza el link en vivo (GitHub Pages) automáticamente.
 - [ ] **Control de luces inteligentes** (Web Bluetooth / HTTP; Philips Hue + genérico)
 
 ## ⏳ DJ-Pro (pendiente)
+- [x] Smart EQ / Sidechain (auto-ducking de graves del deck secundario según el kick del principal)
 - [ ] Controladores MIDI (Web MIDI API + mapeo CC)
-- [ ] Smart EQ / sidechain (auto-ducking de graves con `DynamicsCompressorNode`)
 - [ ] Scratch realista (jog wheels, manipulación de `playbackRate`)
 - [ ] Exportación de sesión en **vídeo** (canvas + máster → WebM)
 

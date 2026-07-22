@@ -42,9 +42,9 @@ export function App() {
     return (
       <div className="overlay">
         <div className="panel card">
-          <img src={logoSrc} alt="DJMIX" className="overlay-logo" />
+          <img src={logoSrc} alt="BEAT DJ" className="overlay-logo" />
           <h1>
-            DJ<span style={{ background: 'linear-gradient(90deg,var(--accent-a),var(--accent-b))', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>MIX</span>
+            BEAT <span style={{ background: 'linear-gradient(90deg,var(--accent-a),var(--accent-b))', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>DJ</span>
           </h1>
           <p style={{ color: 'var(--text-dim)' }}>
             Estudio de mezcla DJ · 100% gratis, privado y local. Mezcla YouTube y tus
@@ -68,7 +68,7 @@ export function App() {
       <img src={logoSrc} alt="" className="overlay-logo" />
       <h2 style={{ margin: 0 }}>Girá tu teléfono</h2>
       <p style={{ color: 'var(--text-dim)', maxWidth: 320 }}>
-        DJMIX es una consola: se usa en <b>horizontal</b> 📱↔️ para tener los dos decks y la
+        BEAT DJ es una consola: se usa en <b>horizontal</b> 📱↔️ para tener los dos decks y la
         mesa a mano.
       </p>
     </div>
@@ -80,7 +80,7 @@ export function App() {
       <div className="topbar">
         <div className="brand">
           <img src={logoSrc} alt="" className="brand-logo" />
-          DJ<span>MIX</span> <span className="tag">local-first · sin registro</span>
+          BEAT <span>DJ</span> <span className="tag">local-first · sin registro</span>
         </div>
         <div className="status-bar">
           <span className={`dot${recording ? ' rec' : ''}`} />
@@ -121,7 +121,7 @@ export function App() {
       {showVisualizer && <Visualizer onClose={() => setShowVisualizer(false)} />}
 
       <footer style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: 11, padding: '8px 0 20px' }}>
-        DJMIX · Web Audio API · FFmpeg.wasm · IndexedDB — hecho para mezclar libremente.
+        BEAT DJ · Web Audio API · FFmpeg.wasm · IndexedDB — hecho para mezclar libremente.
       </footer>
     </div>
   );

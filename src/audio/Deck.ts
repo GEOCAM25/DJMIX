@@ -32,6 +32,11 @@ export class Deck implements AudioUnit {
   private source: AudioBufferSourceNode | null = null;
   private buffer: AudioBuffer | null = null;
   private readonly filter: BiquadFilterNode;
+  /** Lowshelf dedicado al auto-ducking (sidechain); separado del EQ manual. */
+  private readonly sidechainLow: BiquadFilterNode;
+  /** Tap de graves (post-EQ, pre-ducking) para medir el "kick" del deck. */
+  private readonly lowTap: BiquadFilterNode;
+  private readonly lowAnalyser: AnalyserNode;
 
   private _playing = false;
   private _tempo = 0; // porcentaje -50..+50
@@ -52,10 +57,47 @@ export class Deck implements AudioUnit {
 
     this.output = ctx.createGain();
 
-    // Cadena: eq -> filter -> output
+    // Lowshelf dedicado al ducking (0 dB = neutro; el sidechain lo baja).
+    this.sidechainLow = ctx.createBiquadFilter();
+    this.sidechainLow.type = 'lowshelf';
+    this.sidechainLow.frequency.value = 200;
+    this.sidechainLow.gain.value = 0;
+
+    // Cadena: eq -> filter -> sidechainLow -> output
     this.eq.output.connect(this.filter);
-    this.filter.connect(this.output);
+    this.filter.connect(this.sidechainLow);
+    this.sidechainLow.connect(this.output);
     this.input = this.eq.input;
+
+    // Tap de graves (tomado ANTES del ducking, para medir el kick real del deck).
+    this.lowTap = ctx.createBiquadFilter();
+    this.lowTap.type = 'lowpass';
+    this.lowTap.frequency.value = 120;
+    this.lowAnalyser = ctx.createAnalyser();
+    this.lowAnalyser.fftSize = 256;
+    this.filter.connect(this.lowTap);
+    this.lowTap.connect(this.lowAnalyser);
+  }
+
+  // ── Sidechain / auto-ducking ───────────────────────────────────────────────
+  /** Energía de graves actual (0..1), para detectar golpes de bajo. */
+  getLowEnergy(): number {
+    const data = new Uint8Array(this.lowAnalyser.frequencyBinCount);
+    this.lowAnalyser.getByteFrequencyData(data);
+    const n = Math.min(6, data.length);
+    let sum = 0;
+    for (let i = 0; i < n; i++) sum += data[i];
+    return sum / (n * 255);
+  }
+
+  /** Atenúa (o restaura) los graves por sidechain, con rampa suave. */
+  setSidechainLow(db: number): void {
+    this.sidechainLow.gain.setTargetAtTime(db, this.ctx.currentTime, 0.03);
+  }
+
+  /** Valor actual de ducking de graves en dB (0 = sin ducking). */
+  get sidechainLowDb(): number {
+    return this.sidechainLow.gain.value;
   }
 
   // ── Carga ──────────────────────────────────────────────────────────────
