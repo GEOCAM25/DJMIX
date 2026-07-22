@@ -12,6 +12,8 @@ export function MicPanel() {
   const setMicVolume = useStore((s) => s.setMicVolume);
   const setMicReverb = useStore((s) => s.setMicReverb);
   const setMicEcho = useStore((s) => s.setMicEcho);
+  const toggleAutotune = useStore((s) => s.toggleAutotune);
+  const setAutotuneStrength = useStore((s) => s.setAutotuneStrength);
 
   return (
     <div className="panel">
@@ -29,6 +31,22 @@ export function MicPanel() {
             onChange={setMicReverb} format={(v) => `${Math.round(v * 100)}%`} />
           <Knob label="Echo" value={mic.echo} min={0} max={1} resetTo={0}
             onChange={setMicEcho} format={(v) => `${Math.round(v * 100)}%`} />
+        </div>
+
+        <div
+          className="row"
+          style={{ justifyContent: 'space-between', alignItems: 'center', marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 12 }}
+        >
+          <div>
+            <button className={mic.autotune ? 'active' : ''} onClick={toggleAutotune}>
+              🎶 Auto-Tune {mic.autotune ? 'ON' : 'OFF'}
+            </button>
+            <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4, maxWidth: 220 }}>
+              Afina la voz a la nota más cercana (cromática) en tiempo real.
+            </div>
+          </div>
+          <Knob label="Intensidad" value={mic.autotuneStrength} min={0} max={1} resetTo={0.9}
+            onChange={setAutotuneStrength} format={(v) => `${Math.round(v * 100)}%`} />
         </div>
       </div>
 

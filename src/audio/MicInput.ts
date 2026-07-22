@@ -34,6 +34,12 @@ export class MicInput {
   private readonly preFx: GainNode;
   private _enabled = false;
 
+  // Auto-Tune (AudioWorklet) — se inserta entre el compresor y el FX.
+  private autotune: AudioWorkletNode | null = null;
+  private autotuneLoaded = false;
+  private wantAutotune = false;
+  private strengthVal = 0.9;
+
   constructor(private readonly ctx: AudioContext) {
     this.hp = ctx.createBiquadFilter();
     this.hp.type = 'highpass';
@@ -85,6 +91,51 @@ export class MicInput {
     this.source = this.ctx.createMediaStreamSource(this.stream);
     this.source.connect(this.hp);
     this._enabled = true;
+    await this.loadAutotune(); // best-effort; la voz funciona aunque falle
+  }
+
+  /** Carga el worklet de Auto-Tune y lo inserta entre el compresor y el FX. */
+  private async loadAutotune(): Promise<void> {
+    if (this.autotuneLoaded) return;
+    try {
+      await this.ctx.audioWorklet.addModule(`${import.meta.env.BASE_URL}autotune-worklet.js`);
+      const node = new AudioWorkletNode(this.ctx, 'autotune-processor', {
+        numberOfInputs: 1,
+        numberOfOutputs: 1,
+        outputChannelCount: [1],
+      });
+      // Insertar: comp → autotune → preFx (comp estaba conectado directo a preFx).
+      this.comp.disconnect(this.preFx);
+      this.comp.connect(node);
+      node.connect(this.preFx);
+      this.autotune = node;
+      this.autotuneLoaded = true;
+      this.applyAutotuneParams();
+    } catch {
+      // Sin worklet: la cadena comp → preFx queda intacta y la voz suena igual.
+      this.autotune = null;
+    }
+  }
+
+  private applyAutotuneParams(): void {
+    if (!this.autotune) return;
+    this.autotune.parameters.get('enabled')!.value = this.wantAutotune ? 1 : 0;
+    this.autotune.parameters.get('strength')!.value = this.strengthVal;
+  }
+
+  setAutotune(on: boolean): void {
+    this.wantAutotune = on;
+    if (this.autotune) this.autotune.parameters.get('enabled')!.value = on ? 1 : 0;
+  }
+
+  setAutotuneStrength(v: number): void {
+    this.strengthVal = Math.max(0, Math.min(1, v));
+    if (this.autotune) this.autotune.parameters.get('strength')!.value = this.strengthVal;
+  }
+
+  /** ¿El navegador soporta AudioWorklet (para Auto-Tune)? */
+  get autotuneSupported(): boolean {
+    return typeof AudioWorkletNode !== 'undefined' && !!this.ctx.audioWorklet;
   }
 
   disable(): void {

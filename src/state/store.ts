@@ -204,7 +204,7 @@ interface StoreState {
   /** Luces reactivas: preview encendido + estado de la bombilla BLE. */
   lights: { on: boolean; btSupported: boolean; btConnected: boolean; btName: string };
   /** Voz en vivo (micrófono) sobre la mezcla. */
-  mic: { enabled: boolean; volume: number; reverb: number; echo: number };
+  mic: { enabled: boolean; volume: number; reverb: number; echo: number; autotune: boolean; autotuneStrength: number };
   recording: boolean;
   /** ¿Se está grabando vídeo de la sesión? */
   videoRecording: boolean;
@@ -368,6 +368,8 @@ interface StoreState {
   setMicVolume: (v: number) => void;
   setMicReverb: (v: number) => void;
   setMicEcho: (v: number) => void;
+  toggleAutotune: () => void;
+  setAutotuneStrength: (v: number) => void;
 
   // ── Respaldo (Bring Your Own Cloud) ────────────────────────────────────────
   downloadBackup: (includeBlobs: boolean) => Promise<void>;
@@ -443,7 +445,7 @@ export const useStore = create<StoreState>((set, get) => ({
     btConnected: false,
     btName: '',
   },
-  mic: { enabled: false, volume: 0.9, reverb: 0.2, echo: 0 },
+  mic: { enabled: false, volume: 0.9, reverb: 0.2, echo: 0, autotune: false, autotuneStrength: 0.9 },
   recording: false,
   videoRecording: false,
   status: { busy: false, message: '', progress: 0 },
@@ -1552,6 +1554,8 @@ export const useStore = create<StoreState>((set, get) => ({
       engine.mic.setVolume(mic.volume);
       engine.mic.setReverb(mic.reverb);
       engine.mic.setEcho(mic.echo);
+      engine.mic.setAutotuneStrength(mic.autotuneStrength);
+      engine.mic.setAutotune(mic.autotune);
       set((s) => ({ mic: { ...s.mic, enabled: true }, status: { busy: false, message: '🎤 Voz en vivo activa', progress: 1 } }));
     } catch (err) {
       set({ status: { busy: false, message: `No se pudo activar el micrófono: ${(err as Error).message}`, progress: 0 } });
@@ -1569,6 +1573,15 @@ export const useStore = create<StoreState>((set, get) => ({
   setMicEcho(v) {
     get().engine?.mic.setEcho(v);
     set((s) => ({ mic: { ...s.mic, echo: v } }));
+  },
+  toggleAutotune() {
+    const on = !get().mic.autotune;
+    get().engine?.mic.setAutotune(on);
+    set((s) => ({ mic: { ...s.mic, autotune: on } }));
+  },
+  setAutotuneStrength(v) {
+    get().engine?.mic.setAutotuneStrength(v);
+    set((s) => ({ mic: { ...s.mic, autotuneStrength: v } }));
   },
 
   addMacro(name, steps) {

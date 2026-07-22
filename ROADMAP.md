@@ -44,7 +44,7 @@ actualiza el link en vivo (GitHub Pages) automáticamente.
 ## ⏳ Estudio Ultra-Premium (pendiente)
 - [x] **Voz en vivo** (micrófono → máster: se oye y se graba en audio/vídeo)
 - [x] Efectos vocales (pasa-altos + compresor + reverb/delay en tiempo real)
-- [ ] **Auto-Tune** de la voz (AudioWorklet, baja latencia) — pendiente
+- [x] **Auto-Tune** de la voz (AudioWorklet: detección de tono + pitch-shift granular, ajuste cromático)
 - [ ] Línea de tiempo para alinear voz + música
 - [ ] **Vocal Remover / stems** con ONNX Runtime Web (cliente, sin servidor)
 - [ ] **Time-stretching** (cambiar BPM sin alterar el tono)
