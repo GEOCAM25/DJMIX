@@ -23,6 +23,7 @@ import { emptySteps, type SeqRow } from '../audio/StepSequencer';
 import type { LoopSlotState } from '../audio/LoopStation';
 import { crateMatches, type CrateRule, type SmartCrate } from '../library/crates';
 import { runMacro, type Macro, type MacroStep } from '../macros/macros';
+import { BleLight, bluetoothLightSupported } from '../lights/bleLight';
 import {
   saveTrack,
   listTracks,
@@ -52,6 +53,10 @@ let videoRec: SessionVideoRecorder | null = null;
 
 /** Macro en reproducción (id) para poder abortarla desde runtime. */
 let runningMacroId: string | null = null;
+
+/** Bombilla BLE conectada (fuera del estado reactivo) + throttle de envío. */
+let bleLight: BleLight | null = null;
+let lastLightSend = 0;
 
 export interface DeckUIState {
   trackId: string | null;
@@ -196,6 +201,8 @@ interface StoreState {
   macros: Macro[];
   /** id de la macro que se está reproduciendo (o null). */
   runningMacro: string | null;
+  /** Luces reactivas: preview encendido + estado de la bombilla BLE. */
+  lights: { on: boolean; btSupported: boolean; btConnected: boolean; btName: string };
   recording: boolean;
   /** ¿Se está grabando vídeo de la sesión? */
   videoRecording: boolean;
@@ -347,6 +354,13 @@ interface StoreState {
   /** Dispara un pad del sampler (usado por el runtime de macros). */
   triggerSample: (padId: string) => void;
 
+  // ── Luces inteligentes ────────────────────────────────────────────────────
+  toggleLights: () => void;
+  connectBluetoothLight: () => Promise<void>;
+  disconnectBluetoothLight: () => void;
+  /** Envía un color a la bombilla BLE (con throttle); no-op si no hay luz. */
+  pushLightColor: (r: number, g: number, b: number) => void;
+
   // ── Respaldo (Bring Your Own Cloud) ────────────────────────────────────────
   downloadBackup: (includeBlobs: boolean) => Promise<void>;
   restoreBackup: (file: File, mode: 'merge' | 'replace') => Promise<void>;
@@ -415,6 +429,12 @@ export const useStore = create<StoreState>((set, get) => ({
   crates: [],
   macros: [],
   runningMacro: null,
+  lights: {
+    on: true,
+    btSupported: bluetoothLightSupported(),
+    btConnected: false,
+    btName: '',
+  },
   recording: false,
   videoRecording: false,
   status: { busy: false, message: '', progress: 0 },
@@ -1466,6 +1486,46 @@ export const useStore = create<StoreState>((set, get) => ({
   // ── Macros no-code ────────────────────────────────────────────────────────
   triggerSample(padId) {
     get().engine?.sampler.trigger(padId);
+  },
+
+  // ── Luces inteligentes ────────────────────────────────────────────────────
+  toggleLights() {
+    const on = !get().lights.on;
+    set((s) => ({ lights: { ...s.lights, on } }));
+    if (!on && bleLight) void bleLight.setColor(0, 0, 0); // apagar la bombilla
+  },
+
+  async connectBluetoothLight() {
+    if (!bluetoothLightSupported()) {
+      set({ status: { busy: false, message: 'Web Bluetooth no disponible en este navegador.', progress: 0 } });
+      return;
+    }
+    try {
+      bleLight = await BleLight.connect();
+      set((s) => ({
+        lights: { ...s.lights, btConnected: true, btName: bleLight?.name ?? 'Luz BLE' },
+        status: { busy: false, message: `Luz conectada: ${bleLight?.name ?? 'BLE'}`, progress: 1 },
+      }));
+    } catch (err) {
+      set({ status: { busy: false, message: `No se pudo conectar la luz: ${(err as Error).message}`, progress: 0 } });
+    }
+  },
+
+  disconnectBluetoothLight() {
+    if (bleLight) {
+      void bleLight.setColor(0, 0, 0);
+      bleLight.disconnect();
+      bleLight = null;
+    }
+    set((s) => ({ lights: { ...s.lights, btConnected: false, btName: '' } }));
+  },
+
+  pushLightColor(r, g, b) {
+    if (!bleLight) return;
+    const now = performance.now();
+    if (now - lastLightSend < 90) return; // ~11 fps hacia la bombilla
+    lastLightSend = now;
+    void bleLight.setColor(r, g, b);
   },
 
   addMacro(name, steps) {

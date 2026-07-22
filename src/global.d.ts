@@ -16,4 +16,38 @@ declare global {
   interface WindowEventMap {
     beforeinstallprompt: BeforeInstallPromptEvent;
   }
+
+  /**
+   * Tipos mínimos de Web Bluetooth (no vienen en lib.dom). Solo lo que usa el
+   * driver de luces BLE: pedir dispositivo, conectar GATT y escribir el color.
+   */
+  interface BluetoothRemoteGATTCharacteristic {
+    writeValue(value: BufferSource): Promise<void>;
+    writeValueWithoutResponse(value: BufferSource): Promise<void>;
+  }
+  interface BluetoothRemoteGATTService {
+    getCharacteristic(characteristic: number | string): Promise<BluetoothRemoteGATTCharacteristic>;
+  }
+  interface BluetoothRemoteGATTServer {
+    readonly connected: boolean;
+    connect(): Promise<BluetoothRemoteGATTServer>;
+    disconnect(): void;
+    getPrimaryService(service: number | string): Promise<BluetoothRemoteGATTService>;
+  }
+  interface BluetoothDevice {
+    readonly name?: string;
+    readonly gatt?: BluetoothRemoteGATTServer;
+  }
+  interface RequestDeviceOptions {
+    filters?: Array<{ services?: Array<number | string>; name?: string; namePrefix?: string }>;
+    optionalServices?: Array<number | string>;
+    acceptAllDevices?: boolean;
+  }
+  interface Bluetooth {
+    requestDevice(options?: RequestDeviceOptions): Promise<BluetoothDevice>;
+    getAvailability(): Promise<boolean>;
+  }
+  interface Navigator {
+    readonly bluetooth: Bluetooth;
+  }
 }

@@ -28,7 +28,7 @@ actualiza el link en vivo (GitHub Pages) automáticamente.
 - [x] **Auto-DJ (Piloto Automático)**: beatmatch + crossfade lineal con “bass swap”
 - [x] **Exportación multi-pista a ZIP** (stems WAV con JSZip + project.json)
 - [x] **Live Looping Station** (4 pistas, captura por compases sample-accurate, loops multipista)
-- [ ] **Control de luces inteligentes** (Web Bluetooth / HTTP; Philips Hue + genérico)
+- [x] **Control de luces inteligentes**: rig reactivo en pantalla + bombilla RGB por Web Bluetooth (ELK-BLEDOM genérico)
 
 ## ⏳ DJ-Pro (pendiente)
 - [x] Smart EQ / Sidechain (auto-ducking de graves del deck secundario según el kick del principal)
