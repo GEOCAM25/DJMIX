@@ -3,6 +3,7 @@ import { useStore } from '../../state/store';
 import type { DeckId } from '../../audio/types';
 import { Fader } from '../ui/Fader';
 import { Waveform } from './Waveform';
+import { JogWheel } from './JogWheel';
 import { haptic } from '../../util/haptics';
 
 interface DeckPanelProps {
@@ -134,16 +135,34 @@ export function DeckPanel({ id }: DeckPanelProps) {
         </div>
       )}
 
-      <div style={{ marginTop: 12 }}>
-        <Fader
-          label={`Tempo ${deck.tempo >= 0 ? '+' : ''}${deck.tempo.toFixed(1)}%`}
-          value={deck.tempo}
-          min={-8}
-          max={8}
-          step={0.1}
-          onChange={(v) => setTempo(id, v)}
-        />
-      </div>
+      {!isYoutube && (
+        <div className="deck-jog-row">
+          <JogWheel id={id} />
+          <div className="deck-tempo">
+            <Fader
+              label={`Tempo ${deck.tempo >= 0 ? '+' : ''}${deck.tempo.toFixed(1)}%`}
+              value={deck.tempo}
+              min={-8}
+              max={8}
+              step={0.1}
+              onChange={(v) => setTempo(id, v)}
+            />
+          </div>
+        </div>
+      )}
+
+      {isYoutube && (
+        <div style={{ marginTop: 12 }}>
+          <Fader
+            label={`Tempo ${deck.tempo >= 0 ? '+' : ''}${deck.tempo.toFixed(1)}%`}
+            value={deck.tempo}
+            min={-8}
+            max={8}
+            step={0.1}
+            onChange={(v) => setTempo(id, v)}
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -33,7 +33,7 @@ actualiza el link en vivo (GitHub Pages) automáticamente.
 ## ⏳ DJ-Pro (pendiente)
 - [x] Smart EQ / Sidechain (auto-ducking de graves del deck secundario según el kick del principal)
 - [x] Controladores MIDI (Web MIDI API + mapeo CC/nota con **MIDI Learn**, persistente)
-- [ ] Scratch realista (jog wheels, manipulación de `playbackRate`)
+- [x] Jog wheels (plato): nudge/pitch-bend al reproducir + scratch/scrub en pausa (`playbackRate`)
 - [ ] Exportación de sesión en **vídeo** (canvas + máster → WebM)
 
 ## ⏳ Herramientas creativas (pendiente)

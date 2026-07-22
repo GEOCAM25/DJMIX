@@ -40,6 +40,7 @@ export class Deck implements AudioUnit {
 
   private _playing = false;
   private _tempo = 0; // porcentaje -50..+50
+  private _bend = 0; // pitch-bend temporal del jog (nudge), 0 = sin nudge
   private startedAt = 0; // ctx.currentTime del último play
   private offsetAtStart = 0; // posición dentro del buffer al arrancar
   private mainCue = 0; // punto de cue principal (segundos)
@@ -128,7 +129,7 @@ export class Deck implements AudioUnit {
     if (!this.buffer || this._playing) return;
     const src = this.ctx.createBufferSource();
     src.buffer = this.buffer;
-    src.playbackRate.value = this.tempoRate;
+    src.playbackRate.value = this.effectiveRate;
     src.connect(this.eq.input);
     src.onended = () => {
       // Solo notificar si terminó de forma natural (no por un stop manual).
@@ -203,10 +204,9 @@ export class Deck implements AudioUnit {
     this._tempo = Math.max(-50, Math.min(50, percent));
     if (this.source) {
       // Recalcular offset para no dar un salto al cambiar la velocidad.
-      const pos = this.position;
-      this.offsetAtStart = pos;
+      this.offsetAtStart = this.position;
       this.startedAt = this.ctx.currentTime;
-      this.source.playbackRate.setTargetAtTime(this.tempoRate, this.ctx.currentTime, 0.03);
+      this.source.playbackRate.setTargetAtTime(this.effectiveRate, this.ctx.currentTime, 0.03);
     }
   }
 
@@ -214,8 +214,52 @@ export class Deck implements AudioUnit {
     return this._tempo;
   }
 
+  /** Velocidad base del tempo (varispeed), sin el nudge del jog. */
   private get tempoRate(): number {
     return 1 + this._tempo / 100;
+  }
+
+  /** Velocidad real de reproducción = tempo × nudge del jog. */
+  private get effectiveRate(): number {
+    return this.tempoRate * (1 + this._bend);
+  }
+
+  // ── Jog wheel (nudge / scratch de plato) ────────────────────────────────────
+  /**
+   * Pitch-bend temporal del jog (nudge): acelera/frena momentáneamente la
+   * reproducción para cuadrar el beat, como empujar el plato. `bend` ~ -0.6..0.6
+   * (0 = sin nudge). Se re-baseliniza la posición para no dar saltos.
+   */
+  setBend(bend: number): void {
+    const b = Math.max(-0.6, Math.min(0.6, bend));
+    if (this.source) {
+      this.offsetAtStart = this.position;
+      this.startedAt = this.ctx.currentTime;
+      this._bend = b;
+      this.source.playbackRate.setTargetAtTime(this.effectiveRate, this.ctx.currentTime, 0.02);
+    } else {
+      this._bend = b;
+    }
+  }
+
+  get bend(): number {
+    return this._bend;
+  }
+
+  /**
+   * Scrubbing con el plato (buscar): desplaza la posición `deltaSeconds`. Pensado
+   * para usarse en pausa (encontrar el punto de entrada moviendo el jog).
+   */
+  scrub(deltaSeconds: number): void {
+    const target = Math.max(0, Math.min(this.position + deltaSeconds, this.duration));
+    if (this._playing) {
+      this.stopSource();
+      this.offsetAtStart = target;
+      this._playing = false;
+      this.play();
+    } else {
+      this.offsetAtStart = target;
+    }
   }
 
   /** BPM efectivo dado un BPM original y el tempo actual. */
@@ -255,7 +299,7 @@ export class Deck implements AudioUnit {
   get position(): number {
     if (!this.buffer) return 0;
     if (!this._playing) return this.offsetAtStart;
-    const elapsed = (this.ctx.currentTime - this.startedAt) * this.tempoRate;
+    const elapsed = (this.ctx.currentTime - this.startedAt) * this.effectiveRate;
     return Math.min(this.offsetAtStart + elapsed, this.buffer.duration);
   }
 

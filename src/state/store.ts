@@ -211,6 +211,12 @@ interface StoreState {
   jumpToCue: (deck: DeckId, index: number) => void;
   syncToOther: (deck: DeckId) => void;
 
+  // ── Jog wheel (nudge / scratch de plato) ────────────────────────────────
+  /** Pitch-bend temporal del jog (nudge) mientras suena. bend 0 = soltar. */
+  deckNudge: (deck: DeckId, bend: number) => void;
+  /** Scrub (buscar) moviendo el plato en pausa. */
+  deckScrub: (deck: DeckId, deltaSeconds: number) => void;
+
   // ── Mezclador ────────────────────────────────────────────────────────────
   setCrossfade: (v: number) => void;
   setChannelFader: (deck: DeckId, v: number) => void;
@@ -673,6 +679,22 @@ export const useStore = create<StoreState>((set, get) => ({
     if (!target || !mine) return;
     const percent = (target / mine - 1) * 100;
     get().setTempo(deck, Math.max(-50, Math.min(50, percent)));
+  },
+
+  // ── Jog wheel (nudge / scratch de plato) ────────────────────────────────
+  deckNudge(deck, bend) {
+    const { engine } = get();
+    if (!engine || engine.getEngine(deck) === 'youtube') return;
+    engine.getDeck(deck).setBend(bend);
+  },
+
+  deckScrub(deck, deltaSeconds) {
+    const { engine } = get();
+    if (!engine || engine.getEngine(deck) === 'youtube') return;
+    const d = engine.getDeck(deck);
+    d.scrub(deltaSeconds);
+    // Reflejar la nueva posición de inmediato (el tick la confirmará luego).
+    set((s) => ({ decks: { ...s.decks, [deck]: { ...s.decks[deck], position: d.position } } }));
   },
 
   setCrossfade(v) {
