@@ -121,20 +121,26 @@ select:focus {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  padding: 6px 12px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(124, 92, 255, 0.09), rgba(124, 92, 255, 0));
+  border: 1px solid rgba(124, 92, 255, 0.14);
 }
 .brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-weight: 800;
-  font-size: 20px;
-  letter-spacing: 0.5px;
+  font-size: 22px;
+  letter-spacing: 0.6px;
+  text-shadow: 0 0 22px rgba(124, 92, 255, 0.25);
 }
 .brand-logo {
-  height: 32px;
-  width: 32px;
+  height: 40px;
+  width: 40px;
   object-fit: contain;
-  vertical-align: middle;
-  margin-right: 9px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  border-radius: 10px;
+  box-shadow: 0 0 16px rgba(124, 92, 255, 0.45), 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 .overlay-logo {
   width: 136px;
@@ -224,17 +230,9 @@ select:focus {
   width: 128px;
   height: 128px;
 }
-.console-decks .knob {
-  width: 40px;
-  height: 40px;
-}
-.console-decks .knob::after {
-  height: 13px;
-  top: 4px;
-}
-.console-decks .knob + span,
-.console-decks .knob-label {
-  font-size: 10px;
+.console-decks .vknob {
+  width: 28px;
+  height: 58px;
 }
 .console-decks .vfader {
   height: 104px;
@@ -243,11 +241,11 @@ select:focus {
 .console-decks .panel h3 {
   margin-bottom: 6px;
 }
-/* EQ en rejilla 2×2 (más compacto que apilar 4 perillas). */
+/* EQ como banco de 4 faders verticales en una fila (High·Mid·Low·Filter). */
 .eq-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px 10px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
   justify-items: center;
 }
 /* En la consola, el sampler es una tira de 8 pads en una fila (no un bloque). */
@@ -362,6 +360,7 @@ select:focus {
 /* Perillas y deslizadores: el gesto táctil los controla sin arrastrar la
    página (evita el conflicto con el scroll vertical). */
 .knob,
+.vknob,
 input[type='range'] {
   touch-action: none;
 }
@@ -416,13 +415,13 @@ input[type='range'] {
   }
 
   /* Controles táctiles grandes. */
-  .knob {
-    width: 58px;
-    height: 58px;
+  .vknob {
+    width: 38px;
+    height: 74px;
   }
-  .knob::after {
-    height: 19px;
-    transform-origin: 50% 22px;
+  .console-decks .vknob {
+    width: 34px;
+    height: 66px;
   }
   .vfader {
     width: 44px;
@@ -585,6 +584,58 @@ input[type='range'] {
   box-shadow:
     inset 0 0 0 1px var(--knob-accent),
     0 0 9px -3px var(--knob-accent);
+}
+
+/* ── Control vertical (fader) que reemplaza a las perillas ──────────────────
+   Táctil-first: toca/arrastra hacia arriba o abajo (sin giro). Relleno con
+   acento y "thumb" luminoso; para EQ/filtro crece desde el centro (0 dB). */
+.vknob {
+  position: relative;
+  width: 30px;
+  height: 62px;
+  border-radius: 9px;
+  background: linear-gradient(180deg, #0c111a 0%, #171f2e 100%);
+  border: 1px solid var(--border);
+  box-shadow: inset 0 2px 7px rgba(0, 0, 0, 0.55);
+  cursor: ns-resize;
+  touch-action: none;
+  overflow: hidden;
+}
+.vknob::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  right: 5px;
+  top: 50%;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+}
+.vknob-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: var(--lo, 0%);
+  height: calc(var(--hi, 50%) - var(--lo, 0%));
+  background: var(--accent, var(--accent-a));
+  opacity: 0.34;
+}
+.vknob-thumb {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  bottom: var(--pos, 50%);
+  height: 7px;
+  margin-bottom: -3.5px;
+  border-radius: 4px;
+  background: var(--accent, var(--accent-a));
+  box-shadow: 0 0 9px -1px var(--accent, var(--accent-a)), 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+.vknob:active .vknob-thumb {
+  box-shadow: 0 0 14px 0 var(--accent, var(--accent-a));
+}
+.ctl-val {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
 }
 
 /* Vúmetro LED (canvas). */

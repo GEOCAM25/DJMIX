@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useStore } from '../../state/store';
 import { getStorageEstimate } from '../../storage/db';
 import { BackupSection } from '../Backup/BackupSection';
@@ -31,7 +32,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
   const usedMb = (usage.usage / 1_048_576).toFixed(1);
   const quotaMb = (usage.quota / 1_048_576).toFixed(0);
 
-  return (
+  return createPortal(
     <div className="overlay" onClick={onClose}>
       <div
         className="panel card"
@@ -102,6 +103,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
           <button className="primary" onClick={save}>Guardar claves</button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

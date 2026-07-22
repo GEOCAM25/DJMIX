@@ -89,6 +89,11 @@ actualiza el link en vivo (GitHub Pages) automáticamente.
 - [x] Vúmetros LED (Canal A/B/Máster) reactivos al AnalyserNode; EQ con color por
       banda (HIGH cian · MID verde · LOW naranja · FILTER violeta); header compacto
       en móvil; pulso al BPM en Play/Hot Cue + vibración (haptics)
+- [x] **v3 — Controles táctiles y pulido**: perillas giratorias → **faders verticales**
+      (toca/arrastra arriba/abajo, sin ambigüedad de dirección); EQ como banco de 4 faders.
+      Header con más aire y brillo. Visualizador **con portal a body** (no le afecta la
+      rotación en móvil) y con animación de reposo (nunca se ve muerto). Ajustes también
+      con portal para funcionar en el móvil rotado.
 - [ ] Más pulido visual (jog wheels, skins, animaciones) — continuo
 
 ## ⏳ Marca, empaquetado y v2

@@ -39,7 +39,7 @@ export function EffectsPanel() {
     <div className="panel">
       <h3>Efectos & Sampler</h3>
 
-      <div style={{ display: 'flex', justifyContent: 'space-around', marginBottom: 14 }}>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: 34, marginBottom: 14, flexWrap: 'wrap' }}>
         <Knob label="Reverb" value={fx.reverb} min={0} max={1} resetTo={0}
           onChange={setReverb} format={(v) => `${Math.round(v * 100)}%`} />
         <Knob label="Echo" value={fx.echo} min={0} max={1} resetTo={0}
