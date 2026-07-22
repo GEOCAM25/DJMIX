@@ -3,6 +3,7 @@ import { YouTubeDeck } from './YouTubeDeck';
 import { MasterEffects } from './Effects';
 import { Sampler } from './Sampler';
 import { StepSequencer } from './StepSequencer';
+import { LoopStation } from './LoopStation';
 import { createDrumSamples } from './synthSamples';
 import { Recorder } from './Recorder';
 import { CueBus, listAudioOutputs, promptSelectOutput, type AudioOutputDevice } from './CueBus';
@@ -54,6 +55,7 @@ export class AudioEngine {
   readonly effects: MasterEffects;
   readonly sampler: Sampler;
   readonly sequencer: StepSequencer;
+  readonly loops: LoopStation;
   readonly recorder: Recorder;
   readonly analyser: AnalyserNode;
   readonly cueBus: CueBus;
@@ -108,6 +110,13 @@ export class AudioEngine {
     this.sequencer = new StepSequencer(this.ctx);
     this.sequencer.setKit(createDrumSamples(this.ctx).map((p) => p.buffer));
     this.sequencer.output.connect(this.effects.input);
+
+    // ── Estación de Live Looping ───────────────────────────────────────────
+    // Captura la mezcla ANTES de sumar los loops (effects.output, pre-máster),
+    // y devuelve los loops al máster para oírlos y grabarlos.
+    this.loops = new LoopStation(this.ctx);
+    this.effects.output.connect(this.loops.captureInput);
+    this.loops.output.connect(this.masterGain);
 
     // ── Canales / decks ───────────────────────────────────────────────────
     this.channels = {

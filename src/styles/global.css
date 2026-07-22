@@ -702,6 +702,50 @@ input[type='range'] {
   pointer-events: none;
 }
 
+/* ── Live Looping ────────────────────────────────────────────────────────── */
+.loop-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.loop-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #161c2c;
+  min-height: 88px;
+  justify-content: center;
+}
+.loop-slot.has {
+  border-color: var(--accent-a);
+}
+.loop-slot.playing {
+  border-color: var(--good);
+  box-shadow: 0 0 12px rgba(52, 211, 153, 0.35) inset;
+}
+.loop-slot.rec {
+  border-color: var(--danger, #f87171);
+  animation: loop-rec-pulse 1s ease-in-out infinite;
+}
+@keyframes loop-rec-pulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(248, 113, 113, 0); }
+  50% { box-shadow: 0 0 14px rgba(248, 113, 113, 0.55) inset; }
+}
+.loop-slot-num {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+.loop-slot-state {
+  font-size: 12px;
+  font-weight: 600;
+  color: #f87171;
+}
+
 /* ── Smart Crates ────────────────────────────────────────────────────────── */
 .crate-builder {
   background: var(--bg);

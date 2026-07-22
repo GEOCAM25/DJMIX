@@ -27,7 +27,7 @@ actualiza el link en vivo (GitHub Pages) automáticamente.
 ## ✅ Fase Final — en progreso
 - [x] **Auto-DJ (Piloto Automático)**: beatmatch + crossfade lineal con “bass swap”
 - [x] **Exportación multi-pista a ZIP** (stems WAV con JSZip + project.json)
-- [ ] **Live Looping Station** (4 canales, grabación por compases, loops sincronizados)
+- [x] **Live Looping Station** (4 pistas, captura por compases sample-accurate, loops multipista)
 - [ ] **Control de luces inteligentes** (Web Bluetooth / HTTP; Philips Hue + genérico)
 
 ## ⏳ DJ-Pro (pendiente)

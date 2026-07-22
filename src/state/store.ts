@@ -20,6 +20,7 @@ import { createDrumSamples } from '../audio/synthSamples';
 import { MidiController, type MidiMessage } from '../midi/MidiController';
 import { applyMidiTarget, controlKey, MIDI_TARGETS } from '../midi/mappings';
 import { emptySteps, type SeqRow } from '../audio/StepSequencer';
+import type { LoopSlotState } from '../audio/LoopStation';
 import { crateMatches, type CrateRule, type SmartCrate } from '../library/crates';
 import {
   saveTrack,
@@ -152,6 +153,13 @@ interface StoreState {
     /** Columna que suena ahora (para iluminar), -1 = detenido. */
     step: number;
     rows: SeqRow[];
+  };
+
+  // Estación de Live Looping (looper multipista)
+  loops: {
+    bpm: number;
+    bars: number;
+    slots: LoopSlotState[];
   };
 
   // Pre-escucha (Cue de audífonos)
@@ -287,6 +295,15 @@ interface StoreState {
   /** Iguala el BPM del secuenciador al BPM efectivo de un deck. */
   seqSyncToDeck: (deck: DeckId) => void;
 
+  // ── Live Looping ──────────────────────────────────────────────────────────
+  loopRecord: (slot: number) => void;
+  loopTogglePlay: (slot: number) => void;
+  loopClear: (slot: number) => void;
+  loopStopAll: () => void;
+  setLoopBars: (bars: number) => void;
+  setLoopBpm: (bpm: number) => void;
+  loopSyncToDeck: (deck: DeckId) => void;
+
   // ── Grabación ────────────────────────────────────────────────────────────
   startRecording: (mode: 'master' | 'tab') => Promise<void>;
   stopRecording: (name: string) => Promise<void>;
@@ -346,6 +363,16 @@ export const useStore = create<StoreState>((set, get) => ({
     mappings: {},
   },
   sequencer: { playing: false, bpm: 120, swing: 0, step: -1, rows: defaultSeqRows() },
+  loops: {
+    bpm: 120,
+    bars: 4,
+    slots: [
+      { hasAudio: false, playing: false, recording: false },
+      { hasAudio: false, playing: false, recording: false },
+      { hasAudio: false, playing: false, recording: false },
+      { hasAudio: false, playing: false, recording: false },
+    ],
+  },
 
   cueMonitor: { A: false, B: false },
   cueDevices: [],
@@ -451,6 +478,13 @@ export const useStore = create<StoreState>((set, get) => ({
     // ── Restaurar Smart Crates ─────────────────────────────────────────────
     const savedCrates = await getSetting<SmartCrate[]>('smartCrates');
     if (Array.isArray(savedCrates)) set({ crates: savedCrates });
+
+    // ── Live Looping: reflejar el estado de los slots en la UI ─────────────
+    engine.loops.setBpm(get().loops.bpm);
+    engine.loops.setBars(get().loops.bars);
+    engine.loops.setOnUpdate(() =>
+      set((s) => ({ loops: { ...s.loops, slots: engine.loops.getStates() } })),
+    );
 
     await Promise.all([get().refreshLibrary(), get().refreshMixes()]);
 
@@ -1183,6 +1217,41 @@ export const useStore = create<StoreState>((set, get) => ({
     }
     const eff = Math.round(d.bpm * (1 + d.tempo / 100));
     get().setSeqBpm(eff);
+  },
+
+  // ── Live Looping ──────────────────────────────────────────────────────────
+  loopRecord(slot) {
+    const { engine } = get();
+    if (!engine) return;
+    void engine.resume();
+    engine.loops.armRecord(slot);
+  },
+  loopTogglePlay(slot) {
+    get().engine?.loops.togglePlay(slot);
+  },
+  loopClear(slot) {
+    get().engine?.loops.clear(slot);
+  },
+  loopStopAll() {
+    get().engine?.loops.stopAll();
+  },
+  setLoopBars(bars) {
+    const b = Math.max(1, Math.min(8, Math.round(bars)));
+    get().engine?.loops.setBars(b);
+    set((s) => ({ loops: { ...s.loops, bars: b } }));
+  },
+  setLoopBpm(bpm) {
+    const b = Math.max(40, Math.min(220, Math.round(bpm)));
+    get().engine?.loops.setBpm(b);
+    set((s) => ({ loops: { ...s.loops, bpm: b } }));
+  },
+  loopSyncToDeck(deck) {
+    const dk = get().decks[deck];
+    if (!dk.bpm) {
+      set({ status: { busy: false, message: `El Deck ${deck} no tiene BPM analizado.`, progress: 0 } });
+      return;
+    }
+    get().setLoopBpm(Math.round(dk.bpm * (1 + dk.tempo / 100)));
   },
 
   async startRecording(mode) {
