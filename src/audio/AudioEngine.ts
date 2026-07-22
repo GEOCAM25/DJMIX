@@ -2,6 +2,8 @@ import { Deck } from './Deck';
 import { YouTubeDeck } from './YouTubeDeck';
 import { MasterEffects } from './Effects';
 import { Sampler } from './Sampler';
+import { StepSequencer } from './StepSequencer';
+import { createDrumSamples } from './synthSamples';
 import { Recorder } from './Recorder';
 import { CueBus, listAudioOutputs, promptSelectOutput, type AudioOutputDevice } from './CueBus';
 import { Sidechain } from './Sidechain';
@@ -51,6 +53,7 @@ export class AudioEngine {
   readonly ctx: AudioContext;
   readonly effects: MasterEffects;
   readonly sampler: Sampler;
+  readonly sequencer: StepSequencer;
   readonly recorder: Recorder;
   readonly analyser: AnalyserNode;
   readonly cueBus: CueBus;
@@ -99,6 +102,12 @@ export class AudioEngine {
     // ── Sampler ──────────────────────────────────────────────────────────
     this.sampler = new Sampler(this.ctx);
     this.sampler.output.connect(this.effects.input);
+
+    // ── Secuenciador de pasos (drum machine) ───────────────────────────────
+    // Kit propio (batería sintética) para que sea independiente del sampler.
+    this.sequencer = new StepSequencer(this.ctx);
+    this.sequencer.setKit(createDrumSamples(this.ctx).map((p) => p.buffer));
+    this.sequencer.output.connect(this.effects.input);
 
     // ── Canales / decks ───────────────────────────────────────────────────
     this.channels = {

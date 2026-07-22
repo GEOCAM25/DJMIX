@@ -17,6 +17,7 @@ import { sliceBuffer } from '../analysis/slicer';
 import { createDrumSamples } from '../audio/synthSamples';
 import { MidiController, type MidiMessage } from '../midi/MidiController';
 import { applyMidiTarget, controlKey, MIDI_TARGETS } from '../midi/mappings';
+import { emptySteps, type SeqRow } from '../audio/StepSequencer';
 import {
   saveTrack,
   listTracks,
@@ -92,6 +93,23 @@ const emptyDeck = (): DeckUIState => ({
 
 const emptyChannel = (): ChannelUIState => ({ fader: 1, eq: { low: 0, mid: 0, high: 0 }, filter: 0 });
 
+/** Patrón inicial del secuenciador: un groove house básico (no vacío). */
+const defaultSeqRows = (): SeqRow[] => {
+  const on = (indices: number[]): boolean[] => {
+    const s = emptySteps(16);
+    indices.forEach((i) => (s[i] = true));
+    return s;
+  };
+  return [
+    { label: 'Kick', bufferIndex: 0, steps: on([0, 4, 8, 12]) },
+    { label: 'Clap', bufferIndex: 3, steps: on([4, 12]) },
+    { label: 'Snare', bufferIndex: 1, steps: on([]) },
+    { label: 'HiHat', bufferIndex: 2, steps: on([2, 6, 10, 14]) },
+    { label: 'Tom', bufferIndex: 4, steps: on([]) },
+    { label: 'Bass', bufferIndex: 6, steps: on([0, 8]) },
+  ];
+};
+
 interface StoreState {
   engine: AudioEngine | null;
   ai: AIProvider;
@@ -115,6 +133,16 @@ interface StoreState {
     learning: string | null;
     /** Diccionario controlKey → id de destino. */
     mappings: Record<string, string>;
+  };
+
+  // Secuenciador de pasos (drum machine de 16 pasos)
+  sequencer: {
+    playing: boolean;
+    bpm: number;
+    swing: number;
+    /** Columna que suena ahora (para iluminar), -1 = detenido. */
+    step: number;
+    rows: SeqRow[];
   };
 
   // Pre-escucha (Cue de audífonos)
@@ -228,6 +256,16 @@ interface StoreState {
   /** Borra el mapeo asociado a un destino. */
   clearMidiMapping: (targetId: string) => void;
 
+  // ── Secuenciador de pasos (drum machine) ────────────────────────────────
+  seqToggleStep: (row: number, step: number) => void;
+  seqPlay: () => void;
+  seqStop: () => void;
+  setSeqBpm: (bpm: number) => void;
+  setSeqSwing: (swing: number) => void;
+  seqClear: () => void;
+  /** Iguala el BPM del secuenciador al BPM efectivo de un deck. */
+  seqSyncToDeck: (deck: DeckId) => void;
+
   // ── Grabación ────────────────────────────────────────────────────────────
   startRecording: (mode: 'master' | 'tab') => Promise<void>;
   stopRecording: (name: string) => Promise<void>;
@@ -274,6 +312,7 @@ export const useStore = create<StoreState>((set, get) => ({
     learning: null,
     mappings: {},
   },
+  sequencer: { playing: false, bpm: 120, swing: 0, step: -1, rows: defaultSeqRows() },
 
   cueMonitor: { A: false, B: false },
   cueDevices: [],
@@ -352,6 +391,19 @@ export const useStore = create<StoreState>((set, get) => ({
     const savedMidi = await getSetting<Record<string, string>>('midiMappings');
     if (savedMidi && typeof savedMidi === 'object') {
       set((s) => ({ midi: { ...s.midi, mappings: savedMidi } }));
+    }
+
+    // ── Restaurar patrón del secuenciador (o dejar el groove por defecto) ───
+    const savedSeq = await getSetting<{ bpm: number; swing: number; rows: SeqRow[] }>('seqPattern');
+    if (savedSeq && Array.isArray(savedSeq.rows) && savedSeq.rows.length) {
+      engine.sequencer.setBpm(savedSeq.bpm ?? 120);
+      engine.sequencer.setSwing(savedSeq.swing ?? 0);
+      engine.sequencer.setRows(savedSeq.rows);
+      set((s) => ({
+        sequencer: { ...s.sequencer, bpm: savedSeq.bpm ?? 120, swing: savedSeq.swing ?? 0, rows: savedSeq.rows },
+      }));
+    } else {
+      engine.sequencer.setRows(get().sequencer.rows);
     }
 
     await Promise.all([get().refreshLibrary(), get().refreshMixes()]);
@@ -1004,6 +1056,63 @@ export const useStore = create<StoreState>((set, get) => ({
     }
     void setSetting('midiMappings', mappings);
     set((s) => ({ midi: { ...s.midi, mappings } }));
+  },
+
+  // ── Secuenciador de pasos (drum machine) ────────────────────────────────
+  seqToggleStep(row, step) {
+    const rows = get().sequencer.rows.map((r, i) =>
+      i === row ? { ...r, steps: r.steps.map((v, j) => (j === step ? !v : v)) } : r,
+    );
+    get().engine?.sequencer.setRows(rows);
+    set((s) => ({ sequencer: { ...s.sequencer, rows } }));
+    void setSetting('seqPattern', { bpm: get().sequencer.bpm, swing: get().sequencer.swing, rows });
+  },
+
+  seqPlay() {
+    const { engine, sequencer } = get();
+    if (!engine) return;
+    engine.sequencer.setRows(sequencer.rows);
+    engine.sequencer.setBpm(sequencer.bpm);
+    engine.sequencer.setSwing(sequencer.swing);
+    void engine.resume();
+    engine.sequencer.start((step) => set((s) => ({ sequencer: { ...s.sequencer, step } })));
+    set((s) => ({ sequencer: { ...s.sequencer, playing: true } }));
+  },
+
+  seqStop() {
+    get().engine?.sequencer.stop();
+    set((s) => ({ sequencer: { ...s.sequencer, playing: false, step: -1 } }));
+  },
+
+  setSeqBpm(bpm) {
+    const clamped = Math.max(40, Math.min(220, Math.round(bpm)));
+    get().engine?.sequencer.setBpm(clamped);
+    set((s) => ({ sequencer: { ...s.sequencer, bpm: clamped } }));
+    void setSetting('seqPattern', { bpm: clamped, swing: get().sequencer.swing, rows: get().sequencer.rows });
+  },
+
+  setSeqSwing(swing) {
+    const clamped = Math.max(0, Math.min(0.6, swing));
+    get().engine?.sequencer.setSwing(clamped);
+    set((s) => ({ sequencer: { ...s.sequencer, swing: clamped } }));
+    void setSetting('seqPattern', { bpm: get().sequencer.bpm, swing: clamped, rows: get().sequencer.rows });
+  },
+
+  seqClear() {
+    const rows = get().sequencer.rows.map((r) => ({ ...r, steps: emptySteps(16) }));
+    get().engine?.sequencer.setRows(rows);
+    set((s) => ({ sequencer: { ...s.sequencer, rows } }));
+    void setSetting('seqPattern', { bpm: get().sequencer.bpm, swing: get().sequencer.swing, rows });
+  },
+
+  seqSyncToDeck(deck) {
+    const d = get().decks[deck];
+    if (!d.bpm) {
+      set({ status: { busy: false, message: `El Deck ${deck} no tiene BPM analizado.`, progress: 0 } });
+      return;
+    }
+    const eff = Math.round(d.bpm * (1 + d.tempo / 100));
+    get().setSeqBpm(eff);
   },
 
   async startRecording(mode) {

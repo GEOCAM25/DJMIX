@@ -528,6 +528,77 @@ input[type='range'] {
   background: var(--accent);
 }
 
+/* ── Secuenciador de pasos (drum machine) ────────────────────────────────── */
+.bpm-stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.bpm-value {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+  min-width: 52px;
+}
+.bpm-value strong {
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
+.bpm-value span {
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: 0.5px;
+}
+.seq-grid-scroll {
+  overflow-x: auto;
+  margin-top: 6px;
+}
+.seq-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 420px;
+}
+.seq-row {
+  display: grid;
+  grid-template-columns: 46px repeat(16, 1fr);
+  gap: 4px;
+  align-items: center;
+}
+.seq-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-align: right;
+  padding-right: 4px;
+}
+.seq-cell {
+  aspect-ratio: 1;
+  min-width: 0;
+  padding: 0;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: #1a2135;
+  transition: background 0.08s, box-shadow 0.08s, transform 0.05s;
+}
+.seq-cell.beat {
+  border-left: 2px solid rgba(255, 255, 255, 0.18);
+}
+.seq-cell.on {
+  background: linear-gradient(180deg, var(--accent-a), var(--accent-b));
+  border-color: transparent;
+}
+.seq-cell.playing {
+  box-shadow: 0 0 0 2px var(--good) inset;
+}
+.seq-cell.on.playing {
+  transform: scale(1.08);
+}
+.seq-cell:active {
+  transform: scale(0.9);
+}
+
 /* ── Biblioteca ──────────────────────────────────────────────────────────── */
 .dropzone {
   border: 1.5px dashed var(--border);

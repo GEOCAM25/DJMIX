@@ -3,6 +3,7 @@ import { useStore } from './state/store';
 import { DeckPanel } from './components/Deck/DeckPanel';
 import { MixerPanel } from './components/Mixer/MixerPanel';
 import { EffectsPanel } from './components/Effects/EffectsPanel';
+import { SequencerPanel } from './components/Sequencer/SequencerPanel';
 import { LibraryPanel } from './components/Library/LibraryPanel';
 import { RecorderPanel } from './components/Recorder/RecorderPanel';
 import { CopilotPanel } from './components/Copilot/CopilotPanel';
@@ -138,6 +139,7 @@ export function App() {
           </div>
 
           <EffectsPanel />
+          <SequencerPanel />
           <AutoDjPanel />
           <CopilotPanel />
           <RecorderPanel />
@@ -155,6 +157,8 @@ export function App() {
             <EffectsPanel />
             <CopilotPanel />
           </div>
+
+          <SequencerPanel />
 
           <div className="row-2col">
             <AutoDjPanel />

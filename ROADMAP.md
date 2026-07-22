@@ -38,7 +38,7 @@ actualiza el link en vivo (GitHub Pages) automáticamente.
 
 ## ⏳ Herramientas creativas (pendiente)
 - [ ] Smart Crates (carpetas inteligentes por reglas en IndexedDB)
-- [ ] Secuenciador de pasos (drum machine 16 pasos sincronizada al reloj)
+- [x] Secuenciador de pasos (drum machine 16 pasos, scheduling de audio, swing, Sync a deck)
 - [ ] Sesiones P2P (WebRTC DataChannels)
 
 ## ⏳ Estudio Ultra-Premium (pendiente)

@@ -18,7 +18,8 @@ export type SettingKey =
   | 'cueDeviceId'
   | 'cueVolume'
   | 'googleClientId'
-  | 'midiMappings';
+  | 'midiMappings'
+  | 'seqPattern';
 
 export async function getSetting<T = unknown>(key: SettingKey): Promise<T | undefined> {
   const db = await getDB();
