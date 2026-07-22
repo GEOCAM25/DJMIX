@@ -7,6 +7,7 @@ import { SequencerPanel } from './components/Sequencer/SequencerPanel';
 import { LoopStationPanel } from './components/Loops/LoopStationPanel';
 import { LibraryPanel } from './components/Library/LibraryPanel';
 import { CratesPanel } from './components/Library/CratesPanel';
+import { MacrosPanel } from './components/Macros/MacrosPanel';
 import { RecorderPanel } from './components/Recorder/RecorderPanel';
 import { CopilotPanel } from './components/Copilot/CopilotPanel';
 import { AutoDjPanel } from './components/AutoDj/AutoDjPanel';
@@ -148,6 +149,7 @@ export function App() {
           <CopilotPanel />
           <RecorderPanel />
           <CratesPanel />
+          <MacrosPanel />
           <LibraryPanel />
         </>
       ) : (
@@ -174,8 +176,10 @@ export function App() {
 
           <div className="row-2col">
             <CratesPanel />
-            <LibraryPanel />
+            <MacrosPanel />
           </div>
+
+          <LibraryPanel />
         </>
       )}
 

@@ -22,6 +22,7 @@ import { applyMidiTarget, controlKey, MIDI_TARGETS } from '../midi/mappings';
 import { emptySteps, type SeqRow } from '../audio/StepSequencer';
 import type { LoopSlotState } from '../audio/LoopStation';
 import { crateMatches, type CrateRule, type SmartCrate } from '../library/crates';
+import { runMacro, type Macro, type MacroStep } from '../macros/macros';
 import {
   saveTrack,
   listTracks,
@@ -48,6 +49,9 @@ const midiLastValue = new Map<string, number>();
 
 /** Grabador de vídeo de la sesión (fuera del estado reactivo). */
 let videoRec: SessionVideoRecorder | null = null;
+
+/** Macro en reproducción (id) para poder abortarla desde runtime. */
+let runningMacroId: string | null = null;
 
 export interface DeckUIState {
   trackId: string | null;
@@ -188,6 +192,10 @@ interface StoreState {
   mixes: MixMeta[];
   /** Smart Crates: carpetas inteligentes por reglas sobre la biblioteca. */
   crates: SmartCrate[];
+  /** Macros no-code (cadenas de acciones con tiempos). */
+  macros: Macro[];
+  /** id de la macro que se está reproduciendo (o null). */
+  runningMacro: string | null;
   recording: boolean;
   /** ¿Se está grabando vídeo de la sesión? */
   videoRecording: boolean;
@@ -331,6 +339,14 @@ interface StoreState {
   /** Envía las pistas locales de un crate a la cola del Auto-DJ. */
   sendCrateToQueue: (id: string) => void;
 
+  // ── Macros no-code ────────────────────────────────────────────────────────
+  addMacro: (name: string, steps: MacroStep[]) => void;
+  removeMacro: (id: string) => void;
+  runMacro: (id: string) => Promise<void>;
+  stopMacro: () => void;
+  /** Dispara un pad del sampler (usado por el runtime de macros). */
+  triggerSample: (padId: string) => void;
+
   // ── Respaldo (Bring Your Own Cloud) ────────────────────────────────────────
   downloadBackup: (includeBlobs: boolean) => Promise<void>;
   restoreBackup: (file: File, mode: 'merge' | 'replace') => Promise<void>;
@@ -397,6 +413,8 @@ export const useStore = create<StoreState>((set, get) => ({
   library: [],
   mixes: [],
   crates: [],
+  macros: [],
+  runningMacro: null,
   recording: false,
   videoRecording: false,
   status: { busy: false, message: '', progress: 0 },
@@ -484,6 +502,10 @@ export const useStore = create<StoreState>((set, get) => ({
     // ── Restaurar Smart Crates ─────────────────────────────────────────────
     const savedCrates = await getSetting<SmartCrate[]>('smartCrates');
     if (Array.isArray(savedCrates)) set({ crates: savedCrates });
+
+    // ── Restaurar Macros ───────────────────────────────────────────────────
+    const savedMacros = await getSetting<Macro[]>('macros');
+    if (Array.isArray(savedMacros)) set({ macros: savedMacros });
 
     // ── Live Looping: reflejar el estado de los slots en la UI ─────────────
     engine.loops.setBpm(get().loops.bpm);
@@ -1439,6 +1461,47 @@ export const useStore = create<StoreState>((set, get) => ({
       autoDj: { ...s.autoDj, queue: [...new Set([...s.autoDj.queue, ...ids])] },
       status: { busy: false, message: `${ids.length} pistas de "${crate.name}" → cola Auto-DJ`, progress: 1 },
     }));
+  },
+
+  // ── Macros no-code ────────────────────────────────────────────────────────
+  triggerSample(padId) {
+    get().engine?.sampler.trigger(padId);
+  },
+
+  addMacro(name, steps) {
+    if (steps.length === 0) {
+      set({ status: { busy: false, message: 'Añade al menos un paso a la macro.', progress: 0 } });
+      return;
+    }
+    const macro: Macro = { id: `macro_${Date.now()}`, name: name.trim() || 'Macro', steps };
+    const macros = [...get().macros, macro];
+    void setSetting('macros', macros);
+    set({ macros });
+  },
+
+  removeMacro(id) {
+    const macros = get().macros.filter((m) => m.id !== id);
+    void setSetting('macros', macros);
+    if (runningMacroId === id) runningMacroId = null;
+    set({ macros, runningMacro: get().runningMacro === id ? null : get().runningMacro });
+  },
+
+  async runMacro(id) {
+    const macro = get().macros.find((m) => m.id === id);
+    if (!macro) return;
+    void get().engine?.resume();
+    runningMacroId = id;
+    set({ runningMacro: id });
+    await runMacro(macro, get(), () => runningMacroId !== id);
+    if (runningMacroId === id) {
+      runningMacroId = null;
+      set({ runningMacro: null });
+    }
+  },
+
+  stopMacro() {
+    runningMacroId = null;
+    set({ runningMacro: null });
   },
 
   // ── Respaldo (Bring Your Own Cloud) ────────────────────────────────────────

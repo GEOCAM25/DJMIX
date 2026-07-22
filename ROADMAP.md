@@ -56,7 +56,7 @@ actualiza el link en vivo (GitHub Pages) automáticamente.
 
 ## ⏳ Automatización, Macros y Control Remoto
 - [x] Motor de temas/skins dinámicos (variables CSS + selector: Oscuro Pro, Anime, B/N, Club Neón)
-- [ ] Creador de Macros no-code (encadenar acciones con tiempos; guardar en IndexedDB)
+- [x] Creador de Macros no-code (encadena acciones con tiempos, reproduce/aborta, guardadas en IndexedDB)
 - [x] Auto-Slicer de samples (detección de transitorios → 8 slices → pads del sampler)
 - [ ] Companion App / control remoto (WebRTC/WebSocket para tablet/celular)
 

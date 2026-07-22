@@ -870,6 +870,46 @@ input[type='range'] {
   gap: 4px;
   margin-top: 3px;
 }
+.macro-steps {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  counter-reset: macro;
+}
+.macro-steps li {
+  counter-increment: macro;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+.macro-steps li::before {
+  content: counter(macro);
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-right: 8px;
+  min-width: 14px;
+}
+.macro-steps li span {
+  flex: 1;
+}
+.macro-steps li button {
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  padding: 0;
+  min-width: 0;
+}
 .mood-tags {
   display: flex;
   flex-wrap: wrap;
