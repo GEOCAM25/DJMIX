@@ -177,6 +177,11 @@ export class AudioEngine {
     return levelFromAnalyser(this.analyser);
   }
 
+  /** Stream de audio del máster (para grabar vídeo de la sesión). */
+  get masterStream(): MediaStream {
+    return this.recordDest.stream;
+  }
+
   /** Debe llamarse tras un gesto del usuario (política de autoplay). */
   async resume(): Promise<void> {
     if (this.ctx.state === 'suspended') await this.ctx.resume();

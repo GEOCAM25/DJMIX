@@ -5,6 +5,7 @@ import type { DeckId, EngineType, EqValues } from '../audio/types';
 import { decodeFileToAudio } from '../media/decode';
 import { extractVideoId, searchYouTube } from '../media/youtube';
 import { buildStemsZip, downloadBlob, type Stem } from '../media/exportProject';
+import { SessionVideoRecorder } from '../media/SessionVideoRecorder';
 import { setupMediaSession, updateMediaSession } from '../media/mediaSession';
 import { exportBackupBlob, exportBackup, parseBackupFile, importBackup } from '../storage/backup';
 import { connectDrive, driveUpload, driveList, driveDownload, type DriveFile } from '../cloud/googleDrive';
@@ -43,6 +44,9 @@ import { analyzeTransition, rankLibrary, recommendYouTube, type TransitionAdvice
  */
 let midiController: MidiController | null = null;
 const midiLastValue = new Map<string, number>();
+
+/** Grabador de vídeo de la sesión (fuera del estado reactivo). */
+let videoRec: SessionVideoRecorder | null = null;
 
 export interface DeckUIState {
   trackId: string | null;
@@ -177,6 +181,8 @@ interface StoreState {
   /** Smart Crates: carpetas inteligentes por reglas sobre la biblioteca. */
   crates: SmartCrate[];
   recording: boolean;
+  /** ¿Se está grabando vídeo de la sesión? */
+  videoRecording: boolean;
   status: Status;
 
   copilot: {
@@ -287,6 +293,9 @@ interface StoreState {
   refreshMixes: () => Promise<void>;
   /** Exporta los decks cargados como stems WAV + project.json en un .zip. */
   exportStems: () => Promise<void>;
+  /** Graba la sesión en vídeo (visualización + audio del máster) → .webm. */
+  startVideoExport: () => Promise<void>;
+  stopVideoExport: () => Promise<void>;
 
   // ── Biblioteca ─────────────────────────────────────────────────────────
   refreshLibrary: () => Promise<void>;
@@ -357,6 +366,7 @@ export const useStore = create<StoreState>((set, get) => ({
   mixes: [],
   crates: [],
   recording: false,
+  videoRecording: false,
   status: { busy: false, message: '', progress: 0 },
 
   copilot: { advice: null, librarySuggestions: [], youtubeSuggestions: [], loading: false },
@@ -1238,6 +1248,44 @@ export const useStore = create<StoreState>((set, get) => ({
       set({ status: { busy: false, message: `ZIP exportado (${stems.length} stems)`, progress: 1 } });
     } catch (err) {
       set({ status: { busy: false, message: `Error al exportar: ${(err as Error).message}`, progress: 0 } });
+    }
+  },
+
+  async startVideoExport() {
+    const { engine } = get();
+    if (!engine || videoRec) return;
+    if (!SessionVideoRecorder.supported) {
+      set({ status: { busy: false, message: 'Tu navegador no permite grabar vídeo del canvas.', progress: 0 } });
+      return;
+    }
+    await engine.resume();
+    videoRec = new SessionVideoRecorder(engine.analyser, engine.masterStream, () => {
+      const d = get().decks;
+      return { titleA: d.A.title, titleB: d.B.title, bpmA: d.A.bpm, bpmB: d.B.bpm };
+    });
+    try {
+      videoRec.start(`${import.meta.env.BASE_URL}logo.png`);
+      set({ videoRecording: true, status: { busy: false, message: 'Grabando vídeo de la sesión…', progress: 0 } });
+    } catch (err) {
+      videoRec = null;
+      set({ status: { busy: false, message: `No se pudo grabar vídeo: ${(err as Error).message}`, progress: 0 } });
+    }
+  },
+
+  async stopVideoExport() {
+    if (!videoRec) return;
+    try {
+      const result = await videoRec.stop();
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+      downloadBlob(result.blob, `beat-dj-video-${stamp}.webm`);
+      set({
+        videoRecording: false,
+        status: { busy: false, message: `Vídeo exportado (${Math.round(result.durationMs / 1000)}s)`, progress: 1 },
+      });
+    } catch (err) {
+      set({ videoRecording: false, status: { busy: false, message: `Error al exportar vídeo: ${(err as Error).message}`, progress: 0 } });
+    } finally {
+      videoRec = null;
     }
   },
 

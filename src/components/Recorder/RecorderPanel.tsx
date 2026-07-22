@@ -21,6 +21,9 @@ export function RecorderPanel() {
   const mixes = useStore((s) => s.mixes);
   const refreshMixes = useStore((s) => s.refreshMixes);
   const exportStems = useStore((s) => s.exportStems);
+  const videoRecording = useStore((s) => s.videoRecording);
+  const startVideoExport = useStore((s) => s.startVideoExport);
+  const stopVideoExport = useStore((s) => s.stopVideoExport);
   const [name, setName] = useState('');
   const [mode, setMode] = useState<'master' | 'tab'>('master');
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -95,6 +98,23 @@ export function RecorderPanel() {
         <small className="hint" style={{ display: 'block', marginTop: 4 }}>
           Genera un .zip con cada deck cargado como WAV + un project.json (BPM, tonalidad,
           cues y estado de la mezcla). Todo local.
+        </small>
+
+        <div className="row" style={{ justifyContent: 'space-between', marginTop: 12 }}>
+          <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>Exportar vídeo de la sesión</span>
+          {!videoRecording ? (
+            <button className="mini-btn" onClick={() => void startVideoExport()}>
+              🎬 Grabar vídeo
+            </button>
+          ) : (
+            <button className="mini-btn danger" onClick={() => void stopVideoExport()}>
+              ■ Detener vídeo
+            </button>
+          )}
+        </div>
+        <small className="hint" style={{ display: 'block', marginTop: 4 }}>
+          Graba una visualización con marca (espectro + forma de onda + títulos) junto al audio
+          del máster y la descarga como .webm.
         </small>
       </div>
 

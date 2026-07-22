@@ -34,7 +34,7 @@ actualiza el link en vivo (GitHub Pages) automáticamente.
 - [x] Smart EQ / Sidechain (auto-ducking de graves del deck secundario según el kick del principal)
 - [x] Controladores MIDI (Web MIDI API + mapeo CC/nota con **MIDI Learn**, persistente)
 - [x] Jog wheels (plato): nudge/pitch-bend al reproducir + scratch/scrub en pausa (`playbackRate`)
-- [ ] Exportación de sesión en **vídeo** (canvas + máster → WebM)
+- [x] Exportación de sesión en **vídeo** (visualización con marca + máster → WebM)
 
 ## ⏳ Herramientas creativas (pendiente)
 - [x] Smart Crates (carpetas inteligentes por reglas: BPM/energía/clave/título/fuente → Auto-DJ)
