@@ -9,7 +9,7 @@ import { CopilotPanel } from './components/Copilot/CopilotPanel';
 import { AutoDjPanel } from './components/AutoDj/AutoDjPanel';
 import { SettingsPanel } from './components/Settings/SettingsPanel';
 import { Visualizer } from './components/Visualizer/Visualizer';
-import { useInstallPrompt } from './pwa/pwa';
+import { useInstallPrompt, lockLandscape } from './pwa/pwa';
 
 /**
  * Layout principal del estudio DJMIX.
@@ -50,7 +50,14 @@ export function App() {
             Estudio de mezcla DJ · 100% gratis, privado y local. Mezcla YouTube y tus
             archivos, graba tus sets y deja que el copiloto de IA te asista.
           </p>
-          <button className="primary" style={{ fontSize: 16, padding: '12px 22px', marginTop: 8 }} onClick={() => void init()}>
+          <button
+            className="primary"
+            style={{ fontSize: 16, padding: '12px 22px', marginTop: 8 }}
+            onClick={() => {
+              void lockLandscape();
+              void init();
+            }}
+          >
             ▶ Entrar al estudio
           </button>
           <p style={{ marginTop: 14 }}>
@@ -63,20 +70,8 @@ export function App() {
     );
   }
 
-  const rotateHint = (
-    <div className="rotate-hint">
-      <img src={logoSrc} alt="" className="overlay-logo" />
-      <h2 style={{ margin: 0 }}>Girá tu teléfono</h2>
-      <p style={{ color: 'var(--text-dim)', maxWidth: 320 }}>
-        BEAT DJ es una consola: se usa en <b>horizontal</b> 📱↔️ para tener los dos decks y la
-        mesa a mano.
-      </p>
-    </div>
-  );
-
   return (
     <div className="app">
-      {rotateHint}
       <div className="topbar">
         <div className="brand">
           <img src={logoSrc} alt="" className="brand-logo" />

@@ -49,6 +49,37 @@ export async function promptInstall(): Promise<boolean> {
   return choice.outcome === 'accepted';
 }
 
+/**
+ * Intenta forzar la orientación horizontal tras un gesto del usuario.
+ * En Android (pantalla completa / PWA instalada) rota físicamente la pantalla.
+ * En iOS no existe esa API: allí el respaldo es la rotación por CSS (ver
+ * .rotate-wrap en global.css), que presenta la consola en horizontal igual.
+ */
+export async function lockLandscape(): Promise<void> {
+  // Solo en teléfonos/tablets táctiles; en escritorio no forzamos nada.
+  const isTouchPhone =
+    matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 1024;
+  if (!isTouchPhone) return;
+  try {
+    const el = document.documentElement as HTMLElement & {
+      webkitRequestFullscreen?: () => Promise<void>;
+    };
+    if (el.requestFullscreen) {
+      await el.requestFullscreen().catch(() => {});
+    } else if (el.webkitRequestFullscreen) {
+      await el.webkitRequestFullscreen().catch(() => {});
+    }
+    const orientation = screen.orientation as ScreenOrientation & {
+      lock?: (o: string) => Promise<void>;
+    };
+    if (orientation?.lock) {
+      await orientation.lock('landscape').catch(() => {});
+    }
+  } catch {
+    /* Sin soporte (iOS): la rotación por CSS se encarga. */
+  }
+}
+
 /** ¿Se está ejecutando ya como app instalada (standalone)? */
 export function isStandalone(): boolean {
   return (
