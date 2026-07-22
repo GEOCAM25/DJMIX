@@ -88,21 +88,25 @@ export function App() {
       <div className="topbar">
         <div className="brand">
           <img src={logoSrc} alt="" className="brand-logo" />
-          BEAT <span>DJ</span> <span className="tag">local-first · sin registro</span>
+          BEAT <span>DJ</span>{' '}
+          <span className="tag tag-full">local-first · sin registro</span>
+          <span className="tag tag-mini" title="Local-first · privado · sin registro">
+            🔒
+          </span>
         </div>
         <div className="status-bar">
           <span className={`dot${recording ? ' rec' : ''}`} />
           {recording ? 'Grabando sesión…' : status.message || 'Listo'}
           {canInstall && (
-            <button className="mini-btn primary" style={{ marginLeft: 10 }} onClick={() => void install()}>
-              ⬇ Instalar app
+            <button className="mini-btn primary" style={{ marginLeft: 10 }} onClick={() => void install()} title="Instalar app">
+              ⬇<span className="btn-label"> Instalar app</span>
             </button>
           )}
-          <button className="mini-btn" style={{ marginLeft: 10 }} onClick={() => setShowVisualizer(true)}>
-            ✦ Visualizador
+          <button className="mini-btn" style={{ marginLeft: 10 }} onClick={() => setShowVisualizer(true)} title="Visualizador">
+            ✦<span className="btn-label"> Visualizador</span>
           </button>
-          <button className="mini-btn" style={{ marginLeft: 6 }} onClick={() => setShowSettings(true)}>
-            ⚙ Ajustes
+          <button className="mini-btn" style={{ marginLeft: 6 }} onClick={() => setShowSettings(true)} title="Ajustes">
+            ⚙<span className="btn-label"> Ajustes</span>
           </button>
         </div>
       </div>

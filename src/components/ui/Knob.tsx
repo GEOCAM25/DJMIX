@@ -9,6 +9,8 @@ interface KnobProps {
   onChange: (v: number) => void;
   /** Color del indicador: canal A (cian) o B (rosa). */
   color?: 'a' | 'b';
+  /** Color de acento explícito (p. ej. por banda de EQ). Prevalece sobre `color`. */
+  accent?: string;
   /** Formatea el valor mostrado bajo el knob. */
   format?: (v: number) => string;
   /** Doble clic para restablecer a este valor. */
@@ -19,7 +21,7 @@ interface KnobProps {
  * Knob rotatorio controlado por arrastre vertical (ratón/táctil).
  * El recorrido cubre -135°..+135° mapeado a [min, max].
  */
-export function Knob({ label, value, min, max, onChange, color, format, resetTo }: KnobProps) {
+export function Knob({ label, value, min, max, onChange, color, accent, format, resetTo }: KnobProps) {
   const dragging = useRef<{ startY: number; startVal: number } | null>(null);
 
   const ratio = (value - min) / (max - min);
@@ -53,8 +55,8 @@ export function Knob({ label, value, min, max, onChange, color, format, resetTo 
   return (
     <div className="control-col">
       <div
-        className={`knob${color === 'b' ? ' b' : ''}`}
-        style={{ '--rot': `${rot}deg` } as CSSProperties}
+        className={`knob${color === 'b' ? ' b' : ''}${accent ? ' accented' : ''}`}
+        style={{ '--rot': `${rot}deg`, ...(accent ? { '--knob-accent': accent } : {}) } as CSSProperties}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}

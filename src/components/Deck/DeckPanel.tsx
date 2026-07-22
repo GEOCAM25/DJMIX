@@ -1,7 +1,9 @@
+import type { CSSProperties } from 'react';
 import { useStore } from '../../state/store';
 import type { DeckId } from '../../audio/types';
 import { Fader } from '../ui/Fader';
 import { Waveform } from './Waveform';
+import { haptic } from '../../util/haptics';
 
 interface DeckPanelProps {
   id: DeckId;
@@ -36,6 +38,11 @@ export function DeckPanel({ id }: DeckPanelProps) {
   const color = id === 'A' ? 'var(--accent-a)' : 'var(--accent-b)';
   const isYoutube = deck.engine === 'youtube';
   const effectiveBpm = deck.bpm ? (deck.bpm * (1 + deck.tempo / 100)).toFixed(1) : '—';
+
+  // Pulso al ritmo del BPM: duración de un beat mientras la pista suena.
+  const beatSec = deck.bpm && deck.playing ? 60 / (deck.bpm * (1 + deck.tempo / 100)) : 0;
+  const pulseClass = beatSec ? ' pulsing' : '';
+  const pulseStyle = beatSec ? ({ ['--beat']: `${beatSec.toFixed(3)}s` } as CSSProperties) : undefined;
 
   return (
     <div className={`panel deck deck-${id}`}>
@@ -94,24 +101,33 @@ export function DeckPanel({ id }: DeckPanelProps) {
       </div>
 
       <div className="transport">
-        <button onClick={() => cue(id)} title="Cue">
+        <button onClick={() => { haptic(); cue(id); }} title="Cue">
           ◆ Cue
         </button>
-        <button className={deck.playing ? 'active' : 'primary'} onClick={() => togglePlay(id)}>
+        <button
+          className={(deck.playing ? 'active' : 'primary') + pulseClass}
+          style={pulseStyle}
+          onClick={() => { haptic(); togglePlay(id); }}
+        >
           {deck.playing ? '❚❚ Pause' : '▶ Play'}
         </button>
-        <button onClick={() => syncToOther(id)} disabled={!deck.bpm} title="Igualar BPM al otro deck">
+        <button onClick={() => { haptic(); syncToOther(id); }} disabled={!deck.bpm} title="Igualar BPM al otro deck">
           ⟲ Sync
         </button>
       </div>
 
       {!isYoutube && (
         <div className="transport">
-          <button className="mini-btn" onClick={() => addCue(id)}>
+          <button className="mini-btn" onClick={() => { haptic(); addCue(id); }}>
             + Hot Cue
           </button>
           {deck.cues.slice(0, 4).map((_, i) => (
-            <button key={i} className="mini-btn" onClick={() => jumpToCue(id, i)}>
+            <button
+              key={i}
+              className={`mini-btn${pulseClass}`}
+              style={pulseStyle}
+              onClick={() => { haptic(); jumpToCue(id, i); }}
+            >
               {i + 1}
             </button>
           ))}

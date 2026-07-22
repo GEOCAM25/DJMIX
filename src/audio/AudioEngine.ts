@@ -19,6 +19,20 @@ interface Channel {
   cueGain: GainNode;
   /** ¿Este deck está en pre-escucha? */
   cueOn: boolean;
+  /** Analizador post-fader del canal para el vúmetro. */
+  meter: AnalyserNode;
+}
+
+/** Nivel RMS (0..1) a partir de un AnalyserNode (dominio del tiempo). */
+function levelFromAnalyser(analyser: AnalyserNode): number {
+  const data = new Uint8Array(analyser.fftSize);
+  analyser.getByteTimeDomainData(data);
+  let sum = 0;
+  for (let i = 0; i < data.length; i++) {
+    const v = (data[i] - 128) / 128;
+    sum += v * v;
+  }
+  return Math.min(1, Math.sqrt(sum / data.length) * 2.6);
 }
 
 /**
@@ -135,8 +149,23 @@ export class AudioEngine {
     deck.output.connect(cueGain);
     cueGain.connect(this.cueBus.input);
 
+    // Vúmetro: analizador post-fader (refleja lo que el canal envía al máster).
+    const meter = this.ctx.createAnalyser();
+    meter.fftSize = 256;
+    gain.connect(meter);
+
     const yt = new YouTubeDeck(`yt-deck-${id}`);
-    return { deck, yt, engine: 'local', gain, fader: 1, cueGain, cueOn: false };
+    return { deck, yt, engine: 'local', gain, fader: 1, cueGain, cueOn: false, meter };
+  }
+
+  /** Nivel RMS (0..1) del canal, para el vúmetro. */
+  getChannelLevel(id: DeckId): number {
+    return levelFromAnalyser(this.channels[id].meter);
+  }
+
+  /** Nivel RMS (0..1) del máster, para el vúmetro. */
+  getMasterLevel(): number {
+    return levelFromAnalyser(this.analyser);
   }
 
   /** Debe llamarse tras un gesto del usuario (política de autoplay). */

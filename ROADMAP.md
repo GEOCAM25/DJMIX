@@ -74,7 +74,10 @@ actualiza el link en vivo (GitHub Pages) automáticamente.
       100% del ancho (sin scroll horizontal), paneles apilados y menos espacios muertos
 - [x] Controles táctiles grandes (perillas/faders ≥44px) con `touch-action: none`
       (sin conflicto con el scroll)
-- [ ] Más pulido visual (animaciones, jog wheels, skins) — continuo
+- [x] Vúmetros LED (Canal A/B/Máster) reactivos al AnalyserNode; EQ con color por
+      banda (HIGH cian · MID verde · LOW naranja · FILTER violeta); header compacto
+      en móvil; pulso al BPM en Play/Hot Cue + vibración (haptics)
+- [ ] Más pulido visual (jog wheels, skins, animaciones) — continuo
 
 ## ⏳ Marca, empaquetado y v2
 - [x] Logo de marca del usuario (barra, pantalla de inicio e iconos PWA)

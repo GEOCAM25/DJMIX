@@ -1,16 +1,28 @@
+import { useCallback } from 'react';
 import { useStore } from '../../state/store';
 import type { DeckId } from '../../audio/types';
 import { Knob } from '../ui/Knob';
 import { Fader } from '../ui/Fader';
+import { VuMeter } from '../ui/VuMeter';
+
+/** Acentos de color por banda de EQ, para identificarlas de un vistazo. */
+const BAND = {
+  high: '#22d3ee', // agudos → cian
+  mid: '#34d399', // medios → verde esmeralda
+  low: '#fb923c', // graves → naranja
+  filter: '#c084fc', // filtro → violeta/magenta
+} as const;
 
 function ChannelStrip({ id }: { id: DeckId }) {
   const channel = useStore((s) => s.channels[id]);
-  const engine = useStore((s) => s.decks[id].engine);
+  const deckEngine = useStore((s) => s.decks[id].engine);
+  const engine = useStore((s) => s.engine);
   const setEq = useStore((s) => s.setEq);
   const setChannelFilter = useStore((s) => s.setChannelFilter);
   const setChannelFader = useStore((s) => s.setChannelFader);
-  const color = id === 'A' ? 'a' : 'b';
-  const disabled = engine === 'youtube';
+  const disabled = deckEngine === 'youtube';
+
+  const getLevel = useCallback(() => engine?.getChannelLevel(id) ?? 0, [engine, id]);
 
   return (
     <div style={{ opacity: disabled ? 0.45 : 1 }}>
@@ -19,16 +31,19 @@ function ChannelStrip({ id }: { id: DeckId }) {
       </div>
       {disabled && <small className="hint" style={{ display: 'block', textAlign: 'center' }}>EQ/filtro no aplican a YouTube</small>}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginTop: 8 }}>
-        <Knob label="High" color={color} value={channel.eq.high} min={-26} max={6} resetTo={0}
+        <Knob label="High" accent={BAND.high} value={channel.eq.high} min={-26} max={6} resetTo={0}
           onChange={(v) => setEq(id, 'high', v)} format={(v) => `${v.toFixed(0)}dB`} />
-        <Knob label="Mid" color={color} value={channel.eq.mid} min={-26} max={6} resetTo={0}
+        <Knob label="Mid" accent={BAND.mid} value={channel.eq.mid} min={-26} max={6} resetTo={0}
           onChange={(v) => setEq(id, 'mid', v)} format={(v) => `${v.toFixed(0)}dB`} />
-        <Knob label="Low" color={color} value={channel.eq.low} min={-26} max={6} resetTo={0}
+        <Knob label="Low" accent={BAND.low} value={channel.eq.low} min={-26} max={6} resetTo={0}
           onChange={(v) => setEq(id, 'low', v)} format={(v) => `${v.toFixed(0)}dB`} />
-        <Knob label="Filter" color={color} value={channel.filter} min={-1} max={1} resetTo={0}
+        <Knob label="Filter" accent={BAND.filter} value={channel.filter} min={-1} max={1} resetTo={0}
           onChange={(v) => setChannelFilter(id, v)} format={(v) => (Math.abs(v) < 0.02 ? 'off' : v < 0 ? 'LP' : 'HP')} />
-        <Fader label="Volumen" vertical value={channel.fader} min={0} max={1}
-          onChange={(v) => setChannelFader(id, v)} />
+        <div className="meter-col">
+          <Fader label="Volumen" vertical value={channel.fader} min={0} max={1}
+            onChange={(v) => setChannelFader(id, v)} />
+          <VuMeter getLevel={getLevel} height={130} />
+        </div>
       </div>
     </div>
   );
@@ -111,6 +126,8 @@ export function MixerPanel() {
   const setCrossfade = useStore((s) => s.setCrossfade);
   const master = useStore((s) => s.master);
   const setMaster = useStore((s) => s.setMaster);
+  const engine = useStore((s) => s.engine);
+  const masterLevel = useCallback(() => engine?.getMasterLevel() ?? 0, [engine]);
 
   return (
     <div className="panel">
@@ -139,8 +156,13 @@ export function MixerPanel() {
       </div>
 
       <div style={{ marginTop: 12 }}>
-        <Fader label={`Máster ${Math.round(master * 100)}%`} value={master} min={0} max={1.2}
-          onChange={setMaster} />
+        <div className="row" style={{ justifyContent: 'center', alignItems: 'flex-end', gap: 12 }}>
+          <div style={{ flex: 1 }}>
+            <Fader label={`Máster ${Math.round(master * 100)}%`} value={master} min={0} max={1.2}
+              onChange={setMaster} />
+          </div>
+          <VuMeter getLevel={masterLevel} height={54} />
+        </div>
       </div>
 
       <CueSection />
