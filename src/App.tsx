@@ -5,6 +5,7 @@ import { MixerPanel } from './components/Mixer/MixerPanel';
 import { EffectsPanel } from './components/Effects/EffectsPanel';
 import { SequencerPanel } from './components/Sequencer/SequencerPanel';
 import { LibraryPanel } from './components/Library/LibraryPanel';
+import { CratesPanel } from './components/Library/CratesPanel';
 import { RecorderPanel } from './components/Recorder/RecorderPanel';
 import { CopilotPanel } from './components/Copilot/CopilotPanel';
 import { AutoDjPanel } from './components/AutoDj/AutoDjPanel';
@@ -143,6 +144,7 @@ export function App() {
           <AutoDjPanel />
           <CopilotPanel />
           <RecorderPanel />
+          <CratesPanel />
           <LibraryPanel />
         </>
       ) : (
@@ -165,7 +167,10 @@ export function App() {
             <RecorderPanel />
           </div>
 
-          <LibraryPanel />
+          <div className="row-2col">
+            <CratesPanel />
+            <LibraryPanel />
+          </div>
         </>
       )}
 

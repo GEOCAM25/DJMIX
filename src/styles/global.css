@@ -702,6 +702,78 @@ input[type='range'] {
   pointer-events: none;
 }
 
+/* ── Smart Crates ────────────────────────────────────────────────────────── */
+.crate-builder {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+}
+.crate-builder input.num {
+  width: 62px;
+}
+.rule-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  background: rgba(34, 211, 238, 0.1);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 8px;
+  color: var(--text);
+}
+.rule-chip.small {
+  background: transparent;
+  color: var(--text-dim);
+  padding: 2px 7px;
+}
+.rule-chip button {
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  padding: 0;
+  min-width: 0;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+.crate-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+.crate-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.crate-item .info {
+  min-width: 0;
+  flex: 1;
+}
+.crate-item .name {
+  font-weight: 600;
+  font-size: 13px;
+}
+.crate-item .name .count {
+  color: var(--text-dim);
+  font-weight: 400;
+  font-size: 12px;
+}
+.crate-item .rules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 3px;
+}
+
 /* ── Biblioteca ──────────────────────────────────────────────────────────── */
 .dropzone {
   border: 1.5px dashed var(--border);

@@ -37,7 +37,7 @@ actualiza el link en vivo (GitHub Pages) automáticamente.
 - [ ] Exportación de sesión en **vídeo** (canvas + máster → WebM)
 
 ## ⏳ Herramientas creativas (pendiente)
-- [ ] Smart Crates (carpetas inteligentes por reglas en IndexedDB)
+- [x] Smart Crates (carpetas inteligentes por reglas: BPM/energía/clave/título/fuente → Auto-DJ)
 - [x] Secuenciador de pasos (drum machine 16 pasos, scheduling de audio, swing, Sync a deck)
 - [ ] Sesiones P2P (WebRTC DataChannels)
 

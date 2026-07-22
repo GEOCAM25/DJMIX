@@ -18,6 +18,7 @@ import { createDrumSamples } from '../audio/synthSamples';
 import { MidiController, type MidiMessage } from '../midi/MidiController';
 import { applyMidiTarget, controlKey, MIDI_TARGETS } from '../midi/mappings';
 import { emptySteps, type SeqRow } from '../audio/StepSequencer';
+import { crateMatches, type CrateRule, type SmartCrate } from '../library/crates';
 import {
   saveTrack,
   listTracks,
@@ -171,6 +172,8 @@ interface StoreState {
 
   library: TrackMeta[];
   mixes: MixMeta[];
+  /** Smart Crates: carpetas inteligentes por reglas sobre la biblioteca. */
+  crates: SmartCrate[];
   recording: boolean;
   status: Status;
 
@@ -287,6 +290,12 @@ interface StoreState {
   refreshLibrary: () => Promise<void>;
   removeTrack: (id: string) => Promise<void>;
 
+  // ── Smart Crates ─────────────────────────────────────────────────────────
+  addCrate: (name: string, rules: CrateRule[]) => void;
+  removeCrate: (id: string) => void;
+  /** Envía las pistas locales de un crate a la cola del Auto-DJ. */
+  sendCrateToQueue: (id: string) => void;
+
   // ── Respaldo (Bring Your Own Cloud) ────────────────────────────────────────
   downloadBackup: (includeBlobs: boolean) => Promise<void>;
   restoreBackup: (file: File, mode: 'merge' | 'replace') => Promise<void>;
@@ -342,6 +351,7 @@ export const useStore = create<StoreState>((set, get) => ({
 
   library: [],
   mixes: [],
+  crates: [],
   recording: false,
   status: { busy: false, message: '', progress: 0 },
 
@@ -423,6 +433,10 @@ export const useStore = create<StoreState>((set, get) => ({
       engine.effects.setStyle(savedStyle);
       set({ audioStyle: savedStyle });
     }
+
+    // ── Restaurar Smart Crates ─────────────────────────────────────────────
+    const savedCrates = await getSetting<SmartCrate[]>('smartCrates');
+    if (Array.isArray(savedCrates)) set({ crates: savedCrates });
 
     await Promise.all([get().refreshLibrary(), get().refreshMixes()]);
 
@@ -1227,6 +1241,40 @@ export const useStore = create<StoreState>((set, get) => ({
   async removeTrack(id) {
     await dbDeleteTrack(id);
     await get().refreshLibrary();
+  },
+
+  // ── Smart Crates ─────────────────────────────────────────────────────────
+  addCrate(name, rules) {
+    if (rules.length === 0) {
+      set({ status: { busy: false, message: 'Añade al menos una regla al crate.', progress: 0 } });
+      return;
+    }
+    const crate: SmartCrate = { id: `crate_${Date.now()}`, name: name.trim() || 'Crate', rules };
+    const crates = [...get().crates, crate];
+    void setSetting('smartCrates', crates);
+    set({ crates });
+  },
+
+  removeCrate(id) {
+    const crates = get().crates.filter((c) => c.id !== id);
+    void setSetting('smartCrates', crates);
+    set({ crates });
+  },
+
+  sendCrateToQueue(id) {
+    const crate = get().crates.find((c) => c.id === id);
+    if (!crate) return;
+    const ids = crateMatches(crate, get().library)
+      .filter((t) => t.engine === 'local')
+      .map((t) => t.id);
+    if (ids.length === 0) {
+      set({ status: { busy: false, message: `"${crate.name}" no tiene pistas locales.`, progress: 0 } });
+      return;
+    }
+    set((s) => ({
+      autoDj: { ...s.autoDj, queue: [...new Set([...s.autoDj.queue, ...ids])] },
+      status: { busy: false, message: `${ids.length} pistas de "${crate.name}" → cola Auto-DJ`, progress: 1 },
+    }));
   },
 
   // ── Respaldo (Bring Your Own Cloud) ────────────────────────────────────────

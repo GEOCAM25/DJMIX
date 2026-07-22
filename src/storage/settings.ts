@@ -20,7 +20,8 @@ export type SettingKey =
   | 'googleClientId'
   | 'midiMappings'
   | 'seqPattern'
-  | 'audioStyle';
+  | 'audioStyle'
+  | 'smartCrates';
 
 export async function getSetting<T = unknown>(key: SettingKey): Promise<T | undefined> {
   const db = await getDB();
