@@ -66,6 +66,12 @@ actualiza el link en vivo (GitHub Pages) automáticamente.
 - [ ] Copiloto Lírico (panel lateral de letras con chat IA: versos, rimas, estructura)
 - [ ] Audio Style Transfer (filtros de género por DSP: Lo-Fi, Club, Ambient)
 
+## ✅ Reproducción & almacenamiento
+- [x] Media Session (controles del sistema / segundo plano best-effort) + reanudar el
+      AudioContext al volver a la app
+- [x] Tope de **50 pistas** locales (FIFO: borra las más antiguas) + contador X/50
+- [x] Auto-DJ con **efectos** en la transición (echo + reverb) para mezclas más fluidas
+
 ## ⏳ Rendimiento
 - [ ] Mover procesamiento pesado (BPM/key/FFmpeg/ONNX) a **Web Workers**
 

@@ -78,3 +78,18 @@ export async function deleteTrack(id: string): Promise<void> {
   await tx.objectStore('trackBlobs').delete(id);
   await tx.done;
 }
+
+/** Tope de pistas locales guardadas (para que la biblioteca no pese demasiado). */
+export const TRACK_LIMIT = 50;
+
+/**
+ * Mantiene como máximo `max` pistas locales: si se supera, borra las más
+ * antiguas (FIFO). Devuelve cuántas se eliminaron.
+ */
+export async function enforceTrackLimit(max = TRACK_LIMIT): Promise<number> {
+  const all = await listTracks(); // orden: más reciente primero
+  if (all.length <= max) return 0;
+  const toDelete = all.slice(max); // las más antiguas por encima del tope
+  for (const track of toDelete) await deleteTrack(track.id);
+  return toDelete.length;
+}

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useStore } from '../../state/store';
 import { FileDropzone } from './FileDropzone';
 import { YouTubeSearch } from './YouTubeSearch';
+import { TRACK_LIMIT } from '../../storage/tracks';
 
 type Tab = 'local' | 'youtube';
 
@@ -16,9 +17,16 @@ export function LibraryPanel() {
   const removeTrack = useStore((s) => s.removeTrack);
   const addToQueue = useStore((s) => s.addToQueue);
 
+  const localCount = library.filter((t) => t.engine === 'local').length;
+
   return (
     <div className="panel">
-      <h3>Biblioteca & Fuentes</h3>
+      <h3>
+        Biblioteca & Fuentes
+        <span className="chip" style={{ marginLeft: 8, textTransform: 'none' }}>
+          {localCount}/{TRACK_LIMIT} pistas
+        </span>
+      </h3>
       <div className="tabs">
         <button className={tab === 'local' ? 'on' : ''} onClick={() => setTab('local')}>
           Mis archivos

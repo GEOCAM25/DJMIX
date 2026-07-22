@@ -5,6 +5,7 @@ import type { DeckId, EngineType, EqValues } from '../audio/types';
 import { decodeFileToAudio } from '../media/decode';
 import { extractVideoId, searchYouTube } from '../media/youtube';
 import { buildStemsZip, downloadBlob, type Stem } from '../media/exportProject';
+import { setupMediaSession, updateMediaSession } from '../media/mediaSession';
 import { exportBackupBlob, exportBackup, parseBackupFile, importBackup } from '../storage/backup';
 import { connectDrive, driveUpload, driveList, driveDownload, type DriveFile } from '../cloud/googleDrive';
 import { applyTheme, DEFAULT_THEME_ID } from '../theme/themes';
@@ -18,6 +19,8 @@ import {
   getTrackBlob,
   setTrackCues,
   deleteTrack as dbDeleteTrack,
+  enforceTrackLimit,
+  TRACK_LIMIT,
 } from '../storage/tracks';
 import { saveMix, listMixes } from '../storage/mixes';
 import { resolveAiKey, resolveYouTubeKey, setSetting, getSetting } from '../storage/settings';
@@ -143,6 +146,8 @@ interface StoreState {
   loadYouTubeByQuery: (deck: DeckId, query: string) => Promise<void>;
 
   // ── Transporte ─────────────────────────────────────────────────────────
+  /** Sincroniza los metadatos/estado con la Media Session del sistema. */
+  syncMediaSession: () => void;
   togglePlay: (deck: DeckId) => void;
   cue: (deck: DeckId) => void;
   setTempo: (deck: DeckId, percent: number) => void;
@@ -298,6 +303,31 @@ export const useStore = create<StoreState>((set, get) => ({
 
     await Promise.all([get().refreshLibrary(), get().refreshMixes()]);
 
+    // ── Media Session (controles del sistema / segundo plano) ──────────────
+    setupMediaSession({
+      onPlay: () => {
+        const { decks } = get();
+        const id: DeckId = decks.A.trackId ? 'A' : 'B';
+        if (!decks[id].playing) get().togglePlay(id);
+      },
+      onPause: () => {
+        const { decks } = get();
+        (['A', 'B'] as DeckId[]).forEach((id) => decks[id].playing && get().togglePlay(id));
+      },
+      onNext: () => {
+        if (get().autoDj.enabled) get().autoDjTransition();
+      },
+      onPrevious: () => {
+        const { decks } = get();
+        const id: DeckId = decks.A.playing ? 'A' : 'B';
+        get().seek(id, 0);
+      },
+    });
+    // Reanudar el contexto de audio al volver a la app (política de background).
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) void engine.resume();
+    });
+
     // Bucle de actualización de posiciones (≈30 fps) para la UI.
     const tick = () => {
       const { engine: eng, decks } = get();
@@ -364,7 +394,12 @@ export const useStore = create<StoreState>((set, get) => ({
         continue;
       }
     }
-    set({ status: { busy: false, message: 'Importación completada', progress: 1 } });
+    // Respeta el tope de pistas locales (borra las más antiguas si se supera).
+    const pruned = await enforceTrackLimit(TRACK_LIMIT);
+    const doneMsg = pruned > 0
+      ? `Importación completada · tope de ${TRACK_LIMIT} pistas (se quitaron ${pruned} antiguas)`
+      : 'Importación completada';
+    set({ status: { busy: false, message: doneMsg, progress: 1 } });
     await get().refreshLibrary();
   },
 
@@ -413,6 +448,7 @@ export const useStore = create<StoreState>((set, get) => ({
       },
     }));
     get().analyzeMix();
+    get().syncMediaSession();
   },
 
   async loadYouTubeToDeck(deck, input, title) {
@@ -457,11 +493,19 @@ export const useStore = create<StoreState>((set, get) => ({
     }
   },
 
+  syncMediaSession() {
+    const { decks } = get();
+    const id: DeckId = decks.A.playing ? 'A' : decks.B.playing ? 'B' : decks.A.trackId ? 'A' : 'B';
+    updateMediaSession({ title: decks[id].title, playing: decks.A.playing || decks.B.playing });
+  },
+
   togglePlay(deck) {
     const { engine } = get();
     if (!engine) return;
     if (engine.getEngine(deck) === 'youtube') engine.getYouTubeDeck(deck).togglePlay();
     else engine.getDeck(deck).togglePlay();
+    // Reflejar el nuevo estado en los controles del sistema.
+    setTimeout(() => get().syncMediaSession(), 0);
   },
 
   cue(deck) {
@@ -714,12 +758,19 @@ export const useStore = create<StoreState>((set, get) => ({
     if (!get().decks[to].playing) get().togglePlay(to);
     const cf = get().autoDj.crossfadeSeconds;
     engine.beginAutoTransition(from, to, cf);
+    // Efecto de transición: sube el echo/reverb durante el crossfade para que
+    // la mezcla suene fluida aunque cambie el género.
+    engine.effects.setEcho(Math.max(get().fx.echo, 0.32));
+    engine.effects.setReverb(Math.max(get().fx.reverb, 0.18));
 
     // Al terminar el crossfade: cerrar, parar el saliente y preparar el siguiente.
     window.setTimeout(() => {
       const eng = get().engine;
       if (!eng) return;
       eng.finishAutoTransition(from, to);
+      // Restaurar los FX a lo que tenía el usuario antes de la transición.
+      eng.effects.setEcho(get().fx.echo);
+      eng.effects.setReverb(get().fx.reverb);
       if (get().decks[from].playing) get().togglePlay(from); // pausar saliente
 
       void (async () => {
