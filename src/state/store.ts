@@ -76,6 +76,8 @@ export interface DeckUIState {
   youtubeId: string | null;
   /** ¿El Smart EQ está atenuando los graves de este deck ahora mismo? */
   ducking: boolean;
+  /** Key Lock (time-stretch): cambia el tempo sin alterar el tono. */
+  keyLock: boolean;
 }
 
 interface ChannelUIState {
@@ -106,6 +108,7 @@ const emptyDeck = (): DeckUIState => ({
   waveBands: null,
   youtubeId: null,
   ducking: false,
+  keyLock: false,
 });
 
 const emptyChannel = (): ChannelUIState => ({ fader: 1, eq: { low: 0, mid: 0, high: 0 }, filter: 0 });
@@ -257,6 +260,8 @@ interface StoreState {
   deckNudge: (deck: DeckId, bend: number) => void;
   /** Scrub (buscar) moviendo el plato en pausa. */
   deckScrub: (deck: DeckId, deltaSeconds: number) => void;
+  /** Key Lock: cambia el tempo del deck sin alterar el tono. */
+  toggleKeyLock: (deck: DeckId) => Promise<void>;
 
   // ── Mezclador ────────────────────────────────────────────────────────────
   setCrossfade: (v: number) => void;
@@ -690,6 +695,7 @@ export const useStore = create<StoreState>((set, get) => ({
         ...s.decks,
         [deck]: {
           ...emptyDeck(),
+          keyLock: s.decks[deck].keyLock, // Key Lock es del deck, no de la pista
           trackId: meta.id,
           title: meta.artist ? `${meta.artist} – ${meta.title}` : meta.title,
           engine: 'local',
@@ -828,6 +834,22 @@ export const useStore = create<StoreState>((set, get) => ({
     d.scrub(deltaSeconds);
     // Reflejar la nueva posición de inmediato (el tick la confirmará luego).
     set((s) => ({ decks: { ...s.decks, [deck]: { ...s.decks[deck], position: d.position } } }));
+  },
+
+  async toggleKeyLock(deck) {
+    const { engine } = get();
+    if (!engine) return;
+    if (engine.getEngine(deck) === 'youtube') {
+      set({ status: { busy: false, message: 'Key Lock no aplica a decks de YouTube (audio cross-origin).', progress: 0 } });
+      return;
+    }
+    const on = !get().decks[deck].keyLock;
+    set((s) => ({ decks: { ...s.decks, [deck]: { ...s.decks[deck], keyLock: on } } }));
+    try {
+      await engine.setKeyLock(deck, on);
+    } catch {
+      set((s) => ({ decks: { ...s.decks, [deck]: { ...s.decks[deck], keyLock: false } } }));
+    }
   },
 
   setCrossfade(v) {

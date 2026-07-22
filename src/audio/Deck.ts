@@ -38,6 +38,13 @@ export class Deck implements AudioUnit {
   private readonly lowTap: BiquadFilterNode;
   private readonly lowAnalyser: AnalyserNode;
 
+  // Key Lock (time-stretch): la fuente entra por deckInput; con Key Lock ON se
+  // enruta por un pitch-shifter que compensa el varispeed (tono preservado).
+  private readonly deckInput: GainNode;
+  private pitchShift: AudioWorkletNode | null = null;
+  private pitchLoaded = false;
+  private keyLock = false;
+
   private _playing = false;
   private _tempo = 0; // porcentaje -50..+50
   private _bend = 0; // pitch-bend temporal del jog (nudge), 0 = sin nudge
@@ -69,6 +76,10 @@ export class Deck implements AudioUnit {
     this.filter.connect(this.sidechainLow);
     this.sidechainLow.connect(this.output);
     this.input = this.eq.input;
+
+    // La fuente de audio entra por deckInput (transparente); Key Lock lo re-enruta.
+    this.deckInput = ctx.createGain();
+    this.deckInput.connect(this.eq.input);
 
     // Tap de graves (tomado ANTES del ducking, para medir el kick real del deck).
     this.lowTap = ctx.createBiquadFilter();
@@ -130,7 +141,7 @@ export class Deck implements AudioUnit {
     const src = this.ctx.createBufferSource();
     src.buffer = this.buffer;
     src.playbackRate.value = this.effectiveRate;
-    src.connect(this.eq.input);
+    src.connect(this.deckInput);
     src.onended = () => {
       // Solo notificar si terminó de forma natural (no por un stop manual).
       if (this.source === src && this._playing) {
@@ -207,6 +218,52 @@ export class Deck implements AudioUnit {
       this.offsetAtStart = this.position;
       this.startedAt = this.ctx.currentTime;
       this.source.playbackRate.setTargetAtTime(this.effectiveRate, this.ctx.currentTime, 0.03);
+    }
+    this.updateKeyLockPitch();
+  }
+
+  // ── Key Lock (time-stretch: cambiar BPM sin alterar el tono) ────────────────
+  get keyLockOn(): boolean {
+    return this.keyLock;
+  }
+
+  /** Ratio de compensación del pitch-shifter: inverso del varispeed del tempo. */
+  private updateKeyLockPitch(): void {
+    if (this.keyLock && this.pitchShift) {
+      this.pitchShift.parameters.get('pitch')!.value = 1 / this.tempoRate;
+    }
+  }
+
+  async setKeyLock(on: boolean): Promise<void> {
+    if (on === this.keyLock) return;
+    if (on) {
+      await this.loadPitchShift();
+      if (!this.pitchShift) return; // sin AudioWorklet no hay Key Lock
+      this.deckInput.disconnect();
+      this.deckInput.connect(this.pitchShift);
+      this.pitchShift.connect(this.eq.input);
+      this.keyLock = true;
+      this.updateKeyLockPitch();
+    } else {
+      this.deckInput.disconnect();
+      if (this.pitchShift) this.pitchShift.disconnect();
+      this.deckInput.connect(this.eq.input);
+      this.keyLock = false;
+    }
+  }
+
+  private async loadPitchShift(): Promise<void> {
+    if (this.pitchLoaded) return;
+    try {
+      await this.ctx.audioWorklet.addModule(`${import.meta.env.BASE_URL}pitchshift-worklet.js`);
+      this.pitchShift = new AudioWorkletNode(this.ctx, 'pitchshift-processor', {
+        numberOfInputs: 1,
+        numberOfOutputs: 1,
+        outputChannelCount: [2],
+      });
+      this.pitchLoaded = true;
+    } catch {
+      this.pitchShift = null;
     }
   }
 

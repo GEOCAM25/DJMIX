@@ -47,7 +47,7 @@ actualiza el link en vivo (GitHub Pages) automáticamente.
 - [x] **Auto-Tune** de la voz (AudioWorklet: detección de tono + pitch-shift granular, ajuste cromático)
 - [ ] Línea de tiempo para alinear voz + música
 - [ ] **Vocal Remover / stems** con ONNX Runtime Web (cliente, sin servidor)
-- [ ] **Time-stretching** (cambiar BPM sin alterar el tono)
+- [x] **Time-stretching / Key Lock** (cambia el BPM sin alterar el tono; pitch-shifter que compensa el varispeed)
 - [x] Onboarding con tour guiado (spotlight propio, sin dependencias; reabrible desde Ajustes)
 
 ## ⏳ Transmisión y Respaldo

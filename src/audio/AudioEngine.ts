@@ -286,6 +286,11 @@ export class AudioEngine {
     this.channels[id].deck.setFilter(value);
   }
 
+  /** Key Lock (time-stretch): cambia el tempo sin alterar el tono. */
+  setKeyLock(id: DeckId, on: boolean): Promise<void> {
+    return this.channels[id].deck.setKeyLock(on);
+  }
+
   // ── Automatización de mezcla (Auto-DJ) ─────────────────────────────────────
   get isAutoTransitioning(): boolean {
     return this.autoTransitioning;

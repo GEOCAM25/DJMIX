@@ -35,6 +35,7 @@ export function DeckPanel({ id }: DeckPanelProps) {
   const addCue = useStore((s) => s.addCue);
   const jumpToCue = useStore((s) => s.jumpToCue);
   const syncToOther = useStore((s) => s.syncToOther);
+  const toggleKeyLock = useStore((s) => s.toggleKeyLock);
 
   const color = id === 'A' ? 'var(--accent-a)' : 'var(--accent-b)';
   const isYoutube = deck.engine === 'youtube';
@@ -139,8 +140,20 @@ export function DeckPanel({ id }: DeckPanelProps) {
         <div className="deck-jog-row">
           <JogWheel id={id} />
           <div className="deck-tempo">
+            <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
+                Tempo {deck.tempo >= 0 ? '+' : ''}{deck.tempo.toFixed(1)}%
+              </span>
+              <button
+                className={`mini-btn${deck.keyLock ? ' active' : ''}`}
+                onClick={() => { haptic(); void toggleKeyLock(id); }}
+                title="Key Lock: cambia el tempo sin alterar el tono"
+              >
+                {deck.keyLock ? '🔒 Key' : 'Key Lock'}
+              </button>
+            </div>
             <Fader
-              label={`Tempo ${deck.tempo >= 0 ? '+' : ''}${deck.tempo.toFixed(1)}%`}
+              label=""
               value={deck.tempo}
               min={-8}
               max={8}
