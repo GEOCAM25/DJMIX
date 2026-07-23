@@ -12,6 +12,7 @@ import { CratesPanel } from './components/Library/CratesPanel';
 import { MacrosPanel } from './components/Macros/MacrosPanel';
 import { LyricsPanel } from './components/Lyrics/LyricsPanel';
 import { RecorderPanel } from './components/Recorder/RecorderPanel';
+import { RecIndicator } from './components/Recorder/RecIndicator';
 import { CopilotPanel } from './components/Copilot/CopilotPanel';
 import { AutoDjPanel } from './components/AutoDj/AutoDjPanel';
 import { SettingsPanel } from './components/Settings/SettingsPanel';
@@ -26,7 +27,7 @@ const RACK_TABS: Array<{ id: string; label: string }> = [
   { id: 'loop', label: '🔁 Loops' },
   { id: 'auto', label: '🤖 Auto-DJ' },
   { id: 'crates', label: '📦 Crates' },
-  { id: 'mic', label: '🎤 Voz' },
+  { id: 'mic', label: '🎤 Voz/MC' },
   { id: 'lights', label: '💡 Luces' },
   { id: 'rec', label: '🎬 Grabar' },
   { id: 'copilot', label: '🧠 Copiloto' },
@@ -134,8 +135,9 @@ export function App() {
           </span>
         </div>
         <div className="status-bar">
+          <RecIndicator />
           <span className={`dot${recording ? ' rec' : ''}`} />
-          <span className="status-msg">{recording ? 'Grabando sesión…' : status.message || 'Listo'}</span>
+          <span className="status-msg">{status.message || 'Listo'}</span>
           {canInstall && (
             <button className="mini-btn primary" style={{ marginLeft: 10 }} onClick={() => void install()} title="Instalar app">
               ⬇<span className="btn-label"> Instalar</span>

@@ -72,6 +72,13 @@ export class AudioEngine {
   private _crossfade = 0; // -1 (A) .. +1 (B)
   private autoTransitioning = false; // el Auto-DJ controla el crossfader
 
+  /** Bus de MÚSICA (todo menos el micrófono). Se agacha en modo animador. */
+  private readonly musicBus: GainNode;
+  private talkover = false; // modo animador (auto-ducking al hablar)
+  private duckLevel = 0.28; // nivel de la música mientras se habla (0..1)
+  private duckEnv = 1; // envolvente suavizada aplicada al bus de música
+  private duckRaf = 0; // id del rAF del bucle de ducking (0 = parado)
+
   constructor() {
     this.ctx = new AudioContext({ latencyHint: 'interactive' });
 
@@ -93,7 +100,13 @@ export class AudioEngine {
 
     this.recordDest = this.ctx.createMediaStreamDestination();
 
-    this.effects.output.connect(this.masterGain);
+    // Bus de música: suma decks + sampler + secuenciador + loops, ANTES del
+    // máster. El micrófono NO pasa por aquí, así el "animador" puede agachar solo
+    // la música (ducking) mientras la voz se mantiene al frente.
+    this.musicBus = this.ctx.createGain();
+    this.musicBus.connect(this.masterGain);
+
+    this.effects.output.connect(this.musicBus);
     this.masterGain.connect(this.limiter);
     this.limiter.connect(this.analyser);
     this.analyser.connect(this.ctx.destination);
@@ -120,7 +133,7 @@ export class AudioEngine {
     // y devuelve los loops al máster para oírlos y grabarlos.
     this.loops = new LoopStation(this.ctx);
     this.effects.output.connect(this.loops.captureInput);
-    this.loops.output.connect(this.masterGain);
+    this.loops.output.connect(this.musicBus);
 
     // ── Luces reactivas (leen el analizador del máster) ────────────────────
     this.lights = new LightEngine(this.analyser);
@@ -276,6 +289,59 @@ export class AudioEngine {
   setMasterGain(value: number): void {
     this.masterGain.gain.setTargetAtTime(Math.max(0, Math.min(1.2, value)), this.ctx.currentTime, 0.02);
   }
+
+  // ── Modo animador (talkover con auto-ducking) ──────────────────────────────
+  /**
+   * Activa/desactiva el "animador": mientras la persona habla por el micrófono,
+   * la música se agacha automáticamente (ducking) y vuelve a subir al callar. La
+   * voz no se agacha (va directa al máster), así que siempre queda al frente.
+   */
+  setTalkover(on: boolean): void {
+    this.talkover = on;
+    if (on) {
+      if (!this.duckRaf) this.duckRaf = requestAnimationFrame(this.duckLoop);
+    } else {
+      // Restaurar la música por completo y detener el bucle.
+      this.duckEnv = 1;
+      this.musicBus.gain.setTargetAtTime(1, this.ctx.currentTime, 0.08);
+      if (this.duckRaf) {
+        cancelAnimationFrame(this.duckRaf);
+        this.duckRaf = 0;
+      }
+    }
+  }
+
+  /** Nivel al que baja la música mientras se habla (0 = silencio, 1 = sin bajar). */
+  setTalkoverDuck(level: number): void {
+    this.duckLevel = Math.max(0, Math.min(1, level));
+  }
+
+  get isTalkover(): boolean {
+    return this.talkover;
+  }
+
+  /** Ganancia actual del bus de música (para el medidor del panel de voz). */
+  get musicDuckGain(): number {
+    return this.duckEnv;
+  }
+
+  /**
+   * Bucle del auto-ducking (~60 fps). Sigue la envolvente de la voz: agacha
+   * rápido al detectar habla y restaura lento al callar (evita el "bombeo").
+   */
+  private duckLoop = (): void => {
+    if (!this.talkover) {
+      this.duckRaf = 0;
+      return;
+    }
+    const voice = this.mic.getVoiceLevel();
+    const speaking = voice > 0.045;
+    const target = speaking ? this.duckLevel : 1;
+    const coef = target < this.duckEnv ? 0.35 : 0.06; // ataque rápido / release lento
+    this.duckEnv += (target - this.duckEnv) * coef;
+    this.musicBus.gain.setTargetAtTime(this.duckEnv, this.ctx.currentTime, 0.03);
+    this.duckRaf = requestAnimationFrame(this.duckLoop);
+  };
 
   setEq(id: DeckId, values: Partial<EqValues>): void {
     // El EQ solo aplica a decks locales (Web Audio).

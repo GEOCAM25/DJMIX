@@ -7,6 +7,7 @@ import { extractVideoId, searchYouTube } from '../media/youtube';
 import { buildStemsZip, downloadBlob, type Stem } from '../media/exportProject';
 import { SessionVideoRecorder } from '../media/SessionVideoRecorder';
 import { enablePlaybackAudio, reassertPlaybackAudio } from '../audio/iosAudio';
+import { lockLandscape } from '../ui/orientation';
 import { setupMediaSession, updateMediaSession } from '../media/mediaSession';
 import { exportBackupBlob, exportBackup, parseBackupFile, importBackup } from '../storage/backup';
 import { connectDrive, driveUpload, driveList, driveDownload, type DriveFile } from '../cloud/googleDrive';
@@ -208,7 +209,18 @@ interface StoreState {
   /** Luces reactivas: preview encendido + estado de la bombilla BLE. */
   lights: { on: boolean; btSupported: boolean; btConnected: boolean; btName: string };
   /** Voz en vivo (micrófono) sobre la mezcla. */
-  mic: { enabled: boolean; volume: number; reverb: number; echo: number; autotune: boolean; autotuneStrength: number };
+  mic: {
+    enabled: boolean;
+    volume: number;
+    reverb: number;
+    echo: number;
+    autotune: boolean;
+    autotuneStrength: number;
+    autotuneKey: number; // 0..11 (Do..Si)
+    autotuneScale: number; // 0 = cromática, 1 = mayor, 2 = menor
+    talkover: boolean; // modo animador (auto-ducking)
+    duckLevel: number; // nivel de la música al hablar (0..1)
+  };
   recording: boolean;
   /** ¿Se está grabando vídeo de la sesión? */
   videoRecording: boolean;
@@ -376,6 +388,10 @@ interface StoreState {
   setMicEcho: (v: number) => void;
   toggleAutotune: () => void;
   setAutotuneStrength: (v: number) => void;
+  setAutotuneKey: (key: number) => void;
+  setAutotuneScale: (scale: number) => void;
+  toggleTalkover: () => void;
+  setDuckLevel: (v: number) => void;
 
   // ── Respaldo (Bring Your Own Cloud) ────────────────────────────────────────
   downloadBackup: (includeBlobs: boolean) => Promise<void>;
@@ -451,7 +467,18 @@ export const useStore = create<StoreState>((set, get) => ({
     btConnected: false,
     btName: '',
   },
-  mic: { enabled: false, volume: 0.9, reverb: 0.2, echo: 0, autotune: false, autotuneStrength: 0.9 },
+  mic: {
+    enabled: false,
+    volume: 0.9,
+    reverb: 0.2,
+    echo: 0,
+    autotune: false,
+    autotuneStrength: 0.9,
+    autotuneKey: 0,
+    autotuneScale: 0,
+    talkover: false,
+    duckLevel: 0.28,
+  },
   recording: false,
   videoRecording: false,
   status: { busy: false, message: '', progress: 0 },
@@ -468,6 +495,9 @@ export const useStore = create<StoreState>((set, get) => ({
     // Dentro del gesto del usuario: hace que el audio suene aunque el teléfono
     // esté en silencio/vibrar (iOS respeta el interruptor de timbre por defecto).
     enablePlaybackAudio();
+    // Bloquear la orientación en horizontal donde el navegador lo permita
+    // (Android/PWA); en iOS Safari el respaldo es la rotación por CSS.
+    void lockLandscape();
     const engine = new AudioEngine();
     await engine.resume();
 
@@ -1574,6 +1604,7 @@ export const useStore = create<StoreState>((set, get) => ({
     const { engine, mic } = get();
     if (!engine) return;
     if (mic.enabled) {
+      engine.setTalkover(false); // restaura la música (conserva la preferencia en el estado)
       engine.mic.disable();
       set((s) => ({ mic: { ...s.mic, enabled: false }, status: { busy: false, message: 'Micrófono apagado', progress: 1 } }));
       return;
@@ -1584,8 +1615,11 @@ export const useStore = create<StoreState>((set, get) => ({
       engine.mic.setVolume(mic.volume);
       engine.mic.setReverb(mic.reverb);
       engine.mic.setEcho(mic.echo);
+      engine.mic.setAutotuneScale(mic.autotuneScale, mic.autotuneKey);
       engine.mic.setAutotuneStrength(mic.autotuneStrength);
       engine.mic.setAutotune(mic.autotune);
+      engine.setTalkoverDuck(mic.duckLevel);
+      engine.setTalkover(mic.talkover);
       set((s) => ({ mic: { ...s.mic, enabled: true }, status: { busy: false, message: '🎤 Voz en vivo activa', progress: 1 } }));
     } catch (err) {
       set({ status: { busy: false, message: `No se pudo activar el micrófono: ${(err as Error).message}`, progress: 0 } });
@@ -1612,6 +1646,26 @@ export const useStore = create<StoreState>((set, get) => ({
   setAutotuneStrength(v) {
     get().engine?.mic.setAutotuneStrength(v);
     set((s) => ({ mic: { ...s.mic, autotuneStrength: v } }));
+  },
+  setAutotuneKey(key) {
+    const k = ((Math.round(key) % 12) + 12) % 12;
+    get().engine?.mic.setAutotuneScale(get().mic.autotuneScale, k);
+    set((s) => ({ mic: { ...s.mic, autotuneKey: k } }));
+  },
+  setAutotuneScale(scale) {
+    const sc = Math.max(0, Math.min(2, Math.round(scale)));
+    get().engine?.mic.setAutotuneScale(sc, get().mic.autotuneKey);
+    set((s) => ({ mic: { ...s.mic, autotuneScale: sc } }));
+  },
+  toggleTalkover() {
+    const on = !get().mic.talkover;
+    get().engine?.setTalkover(on);
+    set((s) => ({ mic: { ...s.mic, talkover: on } }));
+  },
+  setDuckLevel(v) {
+    const lv = Math.max(0, Math.min(1, v));
+    get().engine?.setTalkoverDuck(lv);
+    set((s) => ({ mic: { ...s.mic, duckLevel: lv } }));
   },
 
   addMacro(name, steps) {

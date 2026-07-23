@@ -67,7 +67,7 @@ function CueSection() {
   const refreshCueDevices = useStore((s) => s.refreshCueDevices);
 
   return (
-    <div style={{ marginTop: 10, borderTop: '1px solid var(--border)', paddingTop: 10 }}>
+    <div className="cue-section" style={{ marginTop: 10, borderTop: '1px solid var(--border)', paddingTop: 10 }}>
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>🎧 Pre-escucha (Cue)</span>
         {cueActive && <span className="chip" style={{ color: 'var(--good)' }}>activa</span>}

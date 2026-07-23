@@ -2,9 +2,16 @@ import { useStore } from '../../state/store';
 import { Knob } from '../ui/Knob';
 import { Fader } from '../ui/Fader';
 
+const KEYS = ['Do', 'Do#', 'Re', 'Re#', 'Mi', 'Fa', 'Fa#', 'Sol', 'Sol#', 'La', 'La#', 'Si'];
+const SCALES = ['Cromática', 'Mayor', 'Menor'];
+
 /**
- * Voz en vivo: activa el micrófono y cántale/háblale a tu mezcla con reverb y
- * eco. La voz entra al máster, así que se oye y se graba (audio y vídeo).
+ * Voz en vivo + micrófono de ANIMADOR (MC).
+ *
+ * - Voz en vivo: micrófono con compresor, reverb, eco y Auto-Tune (con escala).
+ * - Animador: mientras suena la música, la persona habla por el micrófono y la
+ *   música se agacha automáticamente (auto-ducking); se ajusta el nivel de fondo
+ *   y el de la voz. La voz entra al máster, así que se oye y se graba.
  */
 export function MicPanel() {
   const mic = useStore((s) => s.mic);
@@ -14,18 +21,28 @@ export function MicPanel() {
   const setMicEcho = useStore((s) => s.setMicEcho);
   const toggleAutotune = useStore((s) => s.toggleAutotune);
   const setAutotuneStrength = useStore((s) => s.setAutotuneStrength);
+  const setAutotuneKey = useStore((s) => s.setAutotuneKey);
+  const setAutotuneScale = useStore((s) => s.setAutotuneScale);
+  const toggleTalkover = useStore((s) => s.toggleTalkover);
+  const setDuckLevel = useStore((s) => s.setDuckLevel);
 
   return (
     <div className="panel">
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3 style={{ margin: 0 }}>Voz en vivo</h3>
+        <h3 style={{ margin: 0 }}>Voz &amp; Animador</h3>
         <button className={mic.enabled ? 'active' : 'primary'} onClick={() => void toggleMic()}>
-          {mic.enabled ? '🎤 Activa' : '🎤 Activar micrófono'}
+          {mic.enabled ? '🎤 Micrófono activo' : '🎤 Activar micrófono'}
         </button>
       </div>
 
       <div style={{ opacity: mic.enabled ? 1 : 0.5, marginTop: 12 }}>
-        <Fader label={`Volumen voz ${Math.round(mic.volume * 100)}%`} value={mic.volume} min={0} max={1.5} onChange={setMicVolume} />
+        <Fader
+          label={`Volumen voz ${Math.round(mic.volume * 100)}%`}
+          value={mic.volume}
+          min={0}
+          max={1.5}
+          onChange={setMicVolume}
+        />
         <div className="row" style={{ justifyContent: 'space-around', marginTop: 12 }}>
           <Knob label="Reverb" value={mic.reverb} min={0} max={1} resetTo={0.2}
             onChange={setMicReverb} format={(v) => `${Math.round(v * 100)}%`} />
@@ -33,20 +50,69 @@ export function MicPanel() {
             onChange={setMicEcho} format={(v) => `${Math.round(v * 100)}%`} />
         </div>
 
-        <div
-          className="row"
-          style={{ justifyContent: 'space-between', alignItems: 'center', marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 12 }}
-        >
-          <div>
-            <button className={mic.autotune ? 'active' : ''} onClick={toggleAutotune}>
-              🎶 Auto-Tune {mic.autotune ? 'ON' : 'OFF'}
+        {/* ── Animador (talkover con auto-ducking) ─────────────────────────── */}
+        <div className="mic-section">
+          <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <strong style={{ fontSize: 13 }}>🎙️ Modo animador</strong>
+              <div className="mic-help">
+                La música baja sola cuando hablas y sube al callar (talkover).
+              </div>
+            </div>
+            <button className={mic.talkover ? 'active' : ''} onClick={toggleTalkover}>
+              {mic.talkover ? 'ON' : 'OFF'}
             </button>
-            <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4, maxWidth: 220 }}>
-              Afina la voz a la nota más cercana (cromática) en tiempo real.
+          </div>
+          <div style={{ marginTop: 10 }}>
+            <Fader
+              label={`Música de fondo al hablar ${Math.round(mic.duckLevel * 100)}%`}
+              value={mic.duckLevel}
+              min={0}
+              max={1}
+              onChange={setDuckLevel}
+            />
+          </div>
+        </div>
+
+        {/* ── Auto-Tune (afinación a escala) ───────────────────────────────── */}
+        <div className="mic-section">
+          <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <strong style={{ fontSize: 13 }}>🎶 Auto-Tune</strong>
+              <div className="mic-help">Afina la voz a la escala elegida en tiempo real.</div>
+            </div>
+            <button className={mic.autotune ? 'active' : ''} onClick={toggleAutotune}>
+              {mic.autotune ? 'ON' : 'OFF'}
+            </button>
+          </div>
+
+          <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            <label className="field mic-field">
+              <span>Escala</span>
+              <select value={mic.autotuneScale} onChange={(e) => setAutotuneScale(Number(e.target.value))}>
+                {SCALES.map((s, i) => (
+                  <option key={s} value={i}>{s}</option>
+                ))}
+              </select>
+            </label>
+            <label className="field mic-field">
+              <span>Tono</span>
+              <select
+                value={mic.autotuneKey}
+                onChange={(e) => setAutotuneKey(Number(e.target.value))}
+                disabled={mic.autotuneScale === 0}
+                title={mic.autotuneScale === 0 ? 'La escala cromática usa las 12 notas' : 'Tónica de la escala'}
+              >
+                {KEYS.map((k, i) => (
+                  <option key={k} value={i}>{k}</option>
+                ))}
+              </select>
+            </label>
+            <div style={{ marginLeft: 'auto' }}>
+              <Knob label="Intensidad" value={mic.autotuneStrength} min={0} max={1} resetTo={0.9}
+                onChange={setAutotuneStrength} format={(v) => `${Math.round(v * 100)}%`} />
             </div>
           </div>
-          <Knob label="Intensidad" value={mic.autotuneStrength} min={0} max={1} resetTo={0.9}
-            onChange={setAutotuneStrength} format={(v) => `${Math.round(v * 100)}%`} />
         </div>
       </div>
 

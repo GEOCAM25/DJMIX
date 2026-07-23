@@ -25,6 +25,8 @@ export class MicInput {
 
   private readonly hp: BiquadFilterNode;
   private readonly comp: DynamicsCompressorNode;
+  /** Analizador de la voz (post-compresor) para el auto-ducking del "animador". */
+  private readonly monitor: AnalyserNode;
   private readonly dry: GainNode;
   private readonly reverb: ConvolverNode;
   private readonly reverbGain: GainNode;
@@ -39,6 +41,8 @@ export class MicInput {
   private autotuneLoaded = false;
   private wantAutotune = false;
   private strengthVal = 0.9;
+  private keyVal = 0; // 0..11 (Do..Si)
+  private scaleVal = 0; // 0 cromática · 1 mayor · 2 menor
 
   constructor(private readonly ctx: AudioContext) {
     this.hp = ctx.createBiquadFilter();
@@ -50,6 +54,13 @@ export class MicInput {
     this.comp.ratio.value = 3;
     this.comp.attack.value = 0.005;
     this.comp.release.value = 0.15;
+
+    // Analizador de nivel de voz para el auto-ducking (talkover del animador).
+    // Toma la señal tras el compresor; es un ramal aparte que no altera el FX.
+    this.monitor = ctx.createAnalyser();
+    this.monitor.fftSize = 512;
+    this.monitor.smoothingTimeConstant = 0.4;
+    this.comp.connect(this.monitor);
 
     this.preFx = ctx.createGain();
     this.dry = ctx.createGain();
@@ -81,6 +92,22 @@ export class MicInput {
 
   get enabled(): boolean {
     return this._enabled;
+  }
+
+  /**
+   * Nivel RMS (0..1) de la voz tras el compresor. Lo usa el auto-ducking del
+   * "animador" para bajar la música cuando la persona habla y subirla al callar.
+   */
+  getVoiceLevel(): number {
+    if (!this._enabled) return 0;
+    const data = new Uint8Array(this.monitor.fftSize);
+    this.monitor.getByteTimeDomainData(data);
+    let sum = 0;
+    for (let i = 0; i < data.length; i++) {
+      const v = (data[i] - 128) / 128;
+      sum += v * v;
+    }
+    return Math.sqrt(sum / data.length);
   }
 
   async enable(): Promise<void> {
@@ -121,6 +148,8 @@ export class MicInput {
     if (!this.autotune) return;
     this.autotune.parameters.get('enabled')!.value = this.wantAutotune ? 1 : 0;
     this.autotune.parameters.get('strength')!.value = this.strengthVal;
+    this.autotune.parameters.get('key')!.value = this.keyVal;
+    this.autotune.parameters.get('scale')!.value = this.scaleVal;
   }
 
   setAutotune(on: boolean): void {
@@ -131,6 +160,16 @@ export class MicInput {
   setAutotuneStrength(v: number): void {
     this.strengthVal = Math.max(0, Math.min(1, v));
     if (this.autotune) this.autotune.parameters.get('strength')!.value = this.strengthVal;
+  }
+
+  /** Fija la escala (0 cromática · 1 mayor · 2 menor) y su tónica (0..11). */
+  setAutotuneScale(scale: number, key: number): void {
+    this.scaleVal = Math.max(0, Math.min(2, Math.round(scale)));
+    this.keyVal = ((Math.round(key) % 12) + 12) % 12;
+    if (this.autotune) {
+      this.autotune.parameters.get('scale')!.value = this.scaleVal;
+      this.autotune.parameters.get('key')!.value = this.keyVal;
+    }
   }
 
   /** ¿El navegador soporta AudioWorklet (para Auto-Tune)? */

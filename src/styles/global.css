@@ -343,31 +343,163 @@ select:focus {
 
 /* ── HORIZONTAL SIEMPRE: en teléfonos en vertical se rota la app por CSS ─────
    para presentarla en landscape automáticamente (sin "gira el teléfono"). El
-   contenido se maqueta con dimensiones landscape y se gira 90° centrado. */
+   contenido se maqueta con dimensiones landscape y se gira 90° centrado.
+
+   Se rota TODO lo que ocupa pantalla completa (el tablero y las capas superpuestas
+   como el visualizador y los ajustes) para que jamás aparezca nada en vertical.
+   Cuando el teléfono ya está en horizontal, esta regla no aplica y se usa el
+   layout nativo (sin rotación), así que los botones quedan en el mismo sitio. */
 @media (max-width: 920px) and (orientation: portrait) {
   html,
   body {
     overflow: hidden;
     height: 100%;
   }
-  .app.board {
+  /* Caja rotada compartida: se maqueta en landscape (ancho = alto del viewport)
+     y se gira 90° en horario alrededor del centro para llenar la pantalla. */
+  .app.board,
+  .visualizer-overlay,
+  .overlay {
     position: fixed;
+    /* inset:auto PRIMERO para anular el inset:0 base de los overlays; luego
+       top/left centran la caja rotada (si se pone inset después, los pisa). */
+    inset: auto;
     width: 100vh;
     height: 100vw;
     top: calc((100vh - 100vw) / 2);
     left: calc((100vw - 100vh) / 2);
     transform: rotate(90deg);
     transform-origin: center center;
+    max-width: none;
+  }
+  .app.board {
     overflow-y: auto;
     overflow-x: hidden;
-    max-width: none;
     /* Zonas seguras mapeadas a través de la rotación 90° horaria: el borde
        superior físico (barra de estado / isla dinámica / hora / batería) cae en
-       el borde IZQUIERDO del contenido, así que se reserva ahí. */
-    padding-top: calc(8px + env(safe-area-inset-right));
-    padding-right: calc(8px + env(safe-area-inset-bottom));
-    padding-bottom: calc(8px + env(safe-area-inset-left));
-    padding-left: calc(10px + env(safe-area-inset-top));
+       el borde IZQUIERDO del contenido, así que se reserva ahí. Se usa un mínimo
+       sólido con max() por si env() llega en 0 en algún navegador. */
+    padding-top: max(8px, env(safe-area-inset-right));
+    padding-right: max(8px, env(safe-area-inset-bottom));
+    padding-bottom: max(8px, env(safe-area-inset-left));
+    padding-left: max(12px, calc(10px + env(safe-area-inset-top)));
+  }
+  /* Los overlays van a document.body (fuera del tablero rotado): se rotan aparte
+     con las mismas dimensiones para seguir viéndose horizontales. */
+  .visualizer-overlay,
+  .overlay {
+    overflow: hidden;
+  }
+  /* El lienzo del visualizador llena el overlay rotado (no el viewport). */
+  .visualizer-canvas {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+/* ── DENSIDAD para TELÉFONO en horizontal (poca altura) ─────────────────────
+   Consola compacta tipo controlador real, para ver decks + mesa con el mínimo
+   scroll. Se aplica al teléfono VERTICAL rotado (portrait) y al HORIZONTAL nativo
+   de poca altura (max-height). La coma en @media funciona como "O". */
+@media (max-width: 920px) and (orientation: portrait),
+  (orientation: landscape) and (max-height: 560px) {
+  .app.board {
+    gap: 6px;
+  }
+  .topbar {
+    padding: 4px 10px;
+  }
+  .brand {
+    font-size: 17px;
+    gap: 7px;
+  }
+  .brand-logo {
+    height: 30px;
+    width: 30px;
+  }
+
+  .console {
+    gap: 6px;
+    padding: 7px;
+  }
+  .console-decks {
+    gap: 6px;
+  }
+  .console .panel {
+    padding: 8px;
+  }
+  .console .waveform,
+  .waveform {
+    height: 52px;
+  }
+  /* En móvil el scratch se hace sobre la forma de onda: el plato ocuparía mucho. */
+  .console .jog,
+  .jog-wrap {
+    display: none;
+  }
+  .console-decks .vfader {
+    height: 68px;
+  }
+  /* Alcanza a decks, mesa Y efectos (todos los faders verticales de la consola). */
+  .console .vknob {
+    width: 24px;
+    height: 42px;
+  }
+  /* Vúmetros más bajos (el height inline del canvas se vence con !important). */
+  .console .vumeter {
+    height: 66px !important;
+  }
+  .console .pad {
+    height: 34px;
+    font-size: 10px;
+  }
+  /* La pre-escucha por audífonos (setSinkId) no existe en móvil: se oculta. */
+  .cue-section {
+    display: none;
+  }
+  /* Menos texto de ayuda en la consola para ganar altura. */
+  .console small.hint {
+    display: none;
+  }
+  .crossfader-wrap {
+    margin: 6px 0 !important;
+  }
+
+  .deck-title {
+    font-size: 13px;
+  }
+  .deck-meta {
+    margin: 3px 0 5px;
+    font-size: 11px;
+  }
+  .chip {
+    padding: 1px 6px;
+  }
+  .panel h3 {
+    margin-bottom: 5px;
+    font-size: 12px;
+  }
+  .transport {
+    margin-top: 6px;
+    gap: 5px;
+  }
+  .transport button {
+    min-width: 44px;
+  }
+  .time {
+    margin-top: 3px;
+    font-size: 11px;
+  }
+  .deck-jog-row {
+    margin-top: 7px;
+    gap: 8px;
+  }
+  .rack-tabs button {
+    padding: 8px 9px;
+    font-size: 12px;
+  }
+  .board-footer {
+    padding: 6px 0 10px !important;
   }
 }
 
@@ -1379,6 +1511,54 @@ input[type='range'] {
     opacity: 0.3;
   }
 }
+
+/* ── Indicador GLOBAL de grabación (barra superior) ───────────────────────── */
+.rec-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px 4px 10px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(248, 113, 113, 0.22), rgba(248, 113, 113, 0.1));
+  border: 1px solid rgba(248, 113, 113, 0.5);
+  box-shadow: 0 0 16px -3px rgba(248, 113, 113, 0.55);
+}
+.rec-indicator .rec-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #f87171;
+  box-shadow: 0 0 8px #f87171;
+  animation: pulse 1s infinite;
+}
+.rec-indicator .rec-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  color: #fecaca;
+  text-transform: uppercase;
+}
+.rec-indicator .rec-time {
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  min-width: 42px;
+  text-align: center;
+}
+.rec-indicator .rec-stop {
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 999px;
+  background: var(--bad);
+  border-color: transparent;
+  color: #fff;
+  min-height: 30px;
+}
+.rec-indicator .rec-stop:hover {
+  filter: brightness(1.1);
+}
 .row {
   display: flex;
   gap: 8px;
@@ -1400,6 +1580,28 @@ label.field span {
 small.hint {
   color: var(--text-dim);
   font-size: 11px;
+}
+
+/* ── Panel de Voz / Animador (MC) ─────────────────────────────────────────── */
+.mic-section {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.mic-help {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 3px;
+  max-width: 260px;
+  line-height: 1.35;
+}
+label.field.mic-field {
+  margin-bottom: 0;
+}
+.mic-field select {
+  min-width: 92px;
+  min-height: 38px;
+  padding: 6px 8px;
 }
 
 /* (El móvil ahora usa el layout por pestañas de más arriba; no se compactan

@@ -44,7 +44,13 @@ actualiza el link en vivo (GitHub Pages) automáticamente.
 ## ⏳ Estudio Ultra-Premium (pendiente)
 - [x] **Voz en vivo** (micrófono → máster: se oye y se graba en audio/vídeo)
 - [x] Efectos vocales (pasa-altos + compresor + reverb/delay en tiempo real)
-- [x] **Auto-Tune** de la voz (AudioWorklet: detección de tono + pitch-shift granular, ajuste cromático)
+- [x] **Auto-Tune** de la voz (AudioWorklet: detección de tono + pitch-shift granular).
+      Ahora con **escala musical** (cromática / mayor / menor + tónica) y velocidad
+      de retune según la intensidad (natural ↔ robótico tipo T-Pain).
+- [x] **Micrófono de ANIMADOR (talkover)**: mientras suena la música, la persona
+      habla por el micrófono y la música se **agacha sola** (auto-ducking) y vuelve
+      a subir al callar. Bus de música separado del máster (la voz nunca se agacha);
+      nivel de "música de fondo al hablar" y volumen de voz ajustables.
 - [ ] Línea de tiempo para alinear voz + música
 - [ ] **Vocal Remover / stems** con ONNX Runtime Web (cliente, sin servidor)
 - [x] **Time-stretching / Key Lock** (cambia el BPM sin alterar el tono; pitch-shifter que compensa el varispeed)
@@ -97,6 +103,16 @@ actualiza el link en vivo (GitHub Pages) automáticamente.
       Header con más aire y brillo. Visualizador **con portal a body** (no le afecta la
       rotación en móvil) y con animación de reposo (nunca se ve muerto). Ajustes también
       con portal para funcionar en el móvil rotado.
+- [x] **v4 — Horizontal blindado + densidad de controlador**:
+      · La app **jamás se ve en vertical**: manifiesto PWA `orientation: landscape`,
+        `screen.orientation.lock` (Android/PWA) y rotación por CSS de respaldo que ahora
+        **cubre toda la pantalla sin franjas negras** y rota también los overlays
+        (visualizador/ajustes). Corregido el bug de posicionamiento (`inset:auto`).
+      · **Consola compacta** para teléfono en horizontal (poca altura): forma de onda,
+        vúmetros, faders y paneles condensados → decks + mesa visibles casi sin scroll,
+        como un controlador real.
+      · **Indicador GLOBAL de grabación** en la barra superior (cronómetro + botón
+        Detener siempre a mano, para audio y vídeo).
 - [ ] Más pulido visual (jog wheels, skins, animaciones) — continuo
 
 ## ⏳ Marca, empaquetado y v2

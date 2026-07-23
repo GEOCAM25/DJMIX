@@ -1,18 +1,24 @@
 /**
  * Auto-Tune (corrección de tono) para la voz en vivo. AudioWorkletProcessor
  * autocontenido (sin imports): detecta el tono por autocorrelación, lo ajusta a
- * la nota más cercana de la escala cromática y desplaza el tono en tiempo real
- * con un pitch-shifter granular de 2 granos (ventanas Hann que suman 1).
+ * la nota más cercana de la ESCALA elegida (cromática / mayor / menor en el tono
+ * seleccionado) y desplaza el tono en tiempo real con un pitch-shifter granular
+ * de 2 granos (ventanas Hann que suman 1).
  *
  * Params:
- *   enabled  (0/1)   — pasa la voz seca si está en 0.
- *   strength (0..1)  — cuánta corrección aplicar (1 = "duro" tipo T-Pain).
+ *   enabled  (0/1)    — pasa la voz seca si está en 0.
+ *   strength (0..1)   — cuánta corrección aplicar (1 = "duro" tipo T-Pain).
+ *                       También acelera el retune (agarre más robótico).
+ *   key      (0..11)  — tónica de la escala (0 = Do … 11 = Si).
+ *   scale    (0/1/2)  — 0 cromática · 1 mayor · 2 menor natural.
  */
 class AutotuneProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
     return [
       { name: 'enabled', defaultValue: 0, minValue: 0, maxValue: 1 },
       { name: 'strength', defaultValue: 0.9, minValue: 0, maxValue: 1 },
+      { name: 'key', defaultValue: 0, minValue: 0, maxValue: 11 },
+      { name: 'scale', defaultValue: 0, minValue: 0, maxValue: 2 },
     ];
   }
 
@@ -28,7 +34,7 @@ class AutotuneProcessor extends AudioWorkletProcessor {
     this.phase = 0;
     this.ratio = 1;
     this.targetRatio = 1;
-    this.glide = 0.0025; // suavizado del ratio por muestra
+    this.glide = 0.0025; // suavizado del ratio por muestra (se ajusta con strength)
 
     // Detección de tono
     this.winLen = 1024;
@@ -37,7 +43,43 @@ class AutotuneProcessor extends AudioWorkletProcessor {
     this.x = new Float32Array(this.winLen);
     this.corr = new Float32Array(this.maxLag + 2);
     this.detectCounter = 0;
-    this.detectInterval = 2048;
+    this.detectInterval = 1536; // ~32 ms @48k: más responsivo que 2048
+
+    // Grados de cada escala (clases de altura 0..11 respecto a la tónica).
+    // [cromática (todas), mayor, menor natural]
+    this.scaleDegrees = [
+      [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+      [0, 2, 4, 5, 7, 9, 11],
+      [0, 2, 3, 5, 7, 8, 10],
+    ];
+    this.lastConfidentRatio = 1; // se conserva en pasajes poco tonales
+  }
+
+  /** MIDI más cercano a `midiFloat` que pertenezca a la escala (tónica `key`). */
+  snapToScale(midiFloat, key, scaleIdx) {
+    const degrees = this.scaleDegrees[scaleIdx] || this.scaleDegrees[0];
+    if (degrees.length === 12) return Math.round(midiFloat); // cromática
+    let best = Math.round(midiFloat);
+    let bestDist = Infinity;
+    const from = Math.floor(midiFloat) - 2;
+    const to = Math.ceil(midiFloat) + 2;
+    for (let m = from; m <= to; m++) {
+      const pc = (((m - key) % 12) + 12) % 12;
+      let inScale = false;
+      for (let d = 0; d < degrees.length; d++) {
+        if (degrees[d] === pc) {
+          inScale = true;
+          break;
+        }
+      }
+      if (!inScale) continue;
+      const dist = Math.abs(m - midiFloat);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = m;
+      }
+    }
+    return best;
   }
 
   sampleAt(pos) {
@@ -49,7 +91,7 @@ class AutotuneProcessor extends AudioWorkletProcessor {
     return this.buf[i0] * (1 - frac) + this.buf[i1] * frac;
   }
 
-  detect(strength) {
+  detect(strength, key, scaleIdx) {
     const { winLen, minLag, maxLag, x, corr, buf, mask, writeIndex, sr } = this;
     // Copiar la última ventana y quitar la media (DC).
     let mean = 0;
@@ -66,6 +108,7 @@ class AutotuneProcessor extends AudioWorkletProcessor {
     }
     if (e0 < 1e-4) {
       this.targetRatio = 1; // silencio → no corregir
+      this.lastConfidentRatio = 1;
       return;
     }
 
@@ -83,8 +126,10 @@ class AutotuneProcessor extends AudioWorkletProcessor {
       }
     }
 
-    if (bestLag < 1 || best < 0.3) {
-      this.targetRatio = 1;
+    // Confianza baja (consonante/ruido): mantener la última corrección tonal en
+    // lugar de saltar de golpe a "sin corregir" (evita clics y desafinaciones).
+    if (bestLag < 1 || best < 0.25) {
+      this.targetRatio = this.lastConfidentRatio;
       return;
     }
 
@@ -99,12 +144,15 @@ class AutotuneProcessor extends AudioWorkletProcessor {
     }
 
     const freq = sr / lagInterp;
-    // Nota más cercana (cromática).
-    const midi = 69 + 12 * Math.log2(freq / 440);
-    const target = 440 * Math.pow(2, (Math.round(midi) - 69) / 12);
-    let r = target / freq;
+    // Nota objetivo: la más cercana DENTRO de la escala elegida.
+    const midiFloat = 69 + 12 * Math.log2(freq / 440);
+    const targetMidi = this.snapToScale(midiFloat, key | 0, scaleIdx | 0);
+    const targetFreq = 440 * Math.pow(2, (targetMidi - 69) / 12);
+    let r = targetFreq / freq;
     r = Math.max(0.7, Math.min(1.4, r)); // corrige solo desviaciones moderadas
-    this.targetRatio = 1 + (r - 1) * strength;
+    const ratio = 1 + (r - 1) * strength;
+    this.targetRatio = ratio;
+    if (best > 0.45) this.lastConfidentRatio = ratio; // memoria solo si es fiable
   }
 
   process(inputs, outputs, params) {
@@ -118,16 +166,22 @@ class AutotuneProcessor extends AudioWorkletProcessor {
 
     const enabled = params.enabled[params.enabled.length - 1] > 0.5;
     const strength = params.strength[params.strength.length - 1];
+    const key = params.key[params.key.length - 1];
+    const scaleIdx = params.scale[params.scale.length - 1];
     const grain = this.grain;
     const half = grain / 2;
     const TWO_PI = Math.PI * 2;
+
+    // Velocidad de retune: con más intensidad, el tono "agarra" más rápido
+    // (efecto más robótico/T-Pain); con poca intensidad, glide natural.
+    this.glide = 0.0015 + strength * 0.02;
 
     for (let i = 0; i < input.length; i++) {
       this.buf[this.writeIndex] = input[i];
 
       if (++this.detectCounter >= this.detectInterval) {
         this.detectCounter = 0;
-        if (enabled) this.detect(strength);
+        if (enabled) this.detect(strength, key, scaleIdx);
         else this.targetRatio = 1;
       }
 
