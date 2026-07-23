@@ -250,6 +250,12 @@ html[data-compact='1'] .btn-label {
   margin-bottom: 6px;
 }
 /* EQ como banco de 4 faders verticales en una fila (High·Mid·Low·Filter). */
+/* Mesa: los dos canales (A y B) uno al lado del otro. */
+.mixer-channels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
 .eq-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -429,10 +435,19 @@ html[data-compact='1'] .console {
   padding: 7px;
 }
 /* Columnas de la consola fijas para el móvil (evita el salto por breakpoints de
-   ancho, que divergían entre horizontal y vertical). */
+   ancho, que divergían entre horizontal y vertical). La mesa necesita ancho para
+   los 8 faders de EQ (Canal A + Canal B); si se estrecha, se corta el Canal B. */
 html[data-compact='1'] .console-decks {
-  grid-template-columns: 1fr minmax(150px, 220px) 1fr;
+  grid-template-columns: 1fr minmax(258px, 330px) 1fr;
   gap: 6px;
+}
+/* Mesa compacta: menos separación entre canales y entre faders de EQ, para que
+   los 8 faders (Canal A + B) quepan aun en teléfonos pequeños (iPhone SE). */
+html[data-compact='1'] .mixer-channels {
+  gap: 6px;
+}
+html[data-compact='1'] .eq-grid {
+  gap: 3px;
 }
 html[data-compact='1'] .console .panel {
   padding: 8px;
