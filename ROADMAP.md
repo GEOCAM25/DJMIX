@@ -108,9 +108,13 @@ actualiza el link en vivo (GitHub Pages) automáticamente.
         `screen.orientation.lock` (Android/PWA) y rotación por CSS de respaldo que ahora
         **cubre toda la pantalla sin franjas negras** y rota también los overlays
         (visualizador/ajustes). Corregido el bug de posicionamiento (`inset:auto`).
-      · **Consola compacta** para teléfono en horizontal (poca altura): forma de onda,
-        vúmetros, faders y paneles condensados → decks + mesa visibles casi sin scroll,
-        como un controlador real.
+      · **UN SOLO diseño horizontal** (sin "horizontal falso"): el modo compacto/rotación
+        lo decide JS según el **lado corto físico** de la pantalla (no la orientación),
+        expuesto en `<html data-compact data-force-rotate>`. Así el diseño es **idéntico**
+        con el teléfono en horizontal o en vertical; al ponerlo vertical solo se añade la
+        rotación, sin cambiar nada ni quitar funciones. Verificado por paridad H/V.
+      · **Consola compacta** para teléfono (densa tipo controlador real): forma de onda,
+        vúmetros, faders y paneles condensados → decks + mesa visibles casi sin scroll.
       · **Indicador GLOBAL de grabación** en la barra superior (cronómetro + botón
         Detener siempre a mano, para audio y vídeo).
 - [ ] Más pulido visual (jog wheels, skins, animaciones) — continuo
