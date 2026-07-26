@@ -27,6 +27,7 @@ export function MicPanel() {
   const setAutotunePreset = useStore((s) => s.setAutotunePreset);
   const toggleTalkover = useStore((s) => s.toggleTalkover);
   const setDuckLevel = useStore((s) => s.setDuckLevel);
+  const setVoiceEffect = useStore((s) => s.setVoiceEffect);
 
   return (
     <div className="panel">
@@ -50,6 +51,30 @@ export function MicPanel() {
             onChange={setMicReverb} format={(v) => `${Math.round(v * 100)}%`} />
           <Knob label="Echo" value={mic.echo} min={0} max={1} resetTo={0}
             onChange={setMicEcho} format={(v) => `${Math.round(v * 100)}%`} />
+        </div>
+
+        {/* ── Efectos de voz ───────────────────────────────────────────────── */}
+        <div className="mic-section">
+          <strong style={{ fontSize: 13 }}>🎭 Efectos de voz</strong>
+          <div className="mic-help">Transforma tu voz en tiempo real (se oye y se graba).</div>
+          <div className="preset-row" style={{ marginTop: 8 }}>
+            {[
+              { id: 'none', label: 'Ninguno' },
+              { id: 'deep', label: '🐻 Grave' },
+              { id: 'high', label: '🐿️ Agudo' },
+              { id: 'robot', label: '🤖 Robot' },
+              { id: 'phone', label: '📞 Teléfono' },
+              { id: 'choir', label: '🎼 Coro' },
+            ].map((e) => (
+              <button
+                key={e.id}
+                className={`preset-btn${mic.voiceEffect === e.id ? ' on' : ''}`}
+                onClick={() => setVoiceEffect(e.id as typeof mic.voiceEffect)}
+              >
+                {e.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* ── Animador (talkover con auto-ducking) ─────────────────────────── */}

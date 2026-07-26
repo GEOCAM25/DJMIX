@@ -24,6 +24,7 @@ import { applyMidiTarget, controlKey, MIDI_TARGETS } from '../midi/mappings';
 import { emptySteps, type SeqRow } from '../audio/StepSequencer';
 import type { LoopSlotState } from '../audio/LoopStation';
 import type { SongInstrument } from '../audio/SongEngine';
+import type { VoiceEffect } from '../audio/MicInput';
 import { crateMatches, type CrateRule, type SmartCrate } from '../library/crates';
 import { runMacro, type Macro, type MacroStep } from '../macros/macros';
 import { BleLight, bluetoothLightSupported } from '../lights/bleLight';
@@ -222,6 +223,7 @@ interface StoreState {
     autotuneScale: number; // 0 = cromática, 1 = mayor, 2 = menor
     talkover: boolean; // modo animador (auto-ducking)
     duckLevel: number; // nivel de la música al hablar (0..1)
+    voiceEffect: VoiceEffect; // efecto de voz (grave/agudo/robot/teléfono/coro)
   };
   song: {
     playing: boolean;
@@ -410,6 +412,7 @@ interface StoreState {
   setAutotunePreset: (preset: 'natural' | 'pop' | 'hard' | 'robot') => void;
   toggleTalkover: () => void;
   setDuckLevel: (v: number) => void;
+  setVoiceEffect: (e: VoiceEffect) => void;
   // ── Estudio de Creación ──
   songToggle: () => Promise<void>;
   setSongKey: (key: number) => void;
@@ -506,6 +509,7 @@ export const useStore = create<StoreState>((set, get) => ({
     autotuneScale: 0,
     talkover: false,
     duckLevel: 0.28,
+    voiceEffect: 'none',
   },
   song: {
     playing: false,
@@ -1660,6 +1664,7 @@ export const useStore = create<StoreState>((set, get) => ({
       engine.mic.setAutotuneStrength(mic.autotuneStrength);
       engine.mic.setAutotuneSpeed(mic.autotuneSpeed);
       engine.mic.setAutotune(mic.autotune);
+      engine.mic.setVoiceEffect(mic.voiceEffect);
       engine.setTalkoverDuck(mic.duckLevel);
       engine.setTalkover(mic.talkover);
       set((s) => ({ mic: { ...s.mic, enabled: true }, status: { busy: false, message: '🎤 Voz en vivo activa', progress: 1 } }));
@@ -1729,6 +1734,10 @@ export const useStore = create<StoreState>((set, get) => ({
     const lv = Math.max(0, Math.min(1, v));
     get().engine?.setTalkoverDuck(lv);
     set((s) => ({ mic: { ...s.mic, duckLevel: lv } }));
+  },
+  setVoiceEffect(e) {
+    get().engine?.mic.setVoiceEffect(e);
+    set((s) => ({ mic: { ...s.mic, voiceEffect: e } }));
   },
 
   // ── Estudio de Creación ────────────────────────────────────────────────────

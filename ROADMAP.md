@@ -44,6 +44,12 @@ actualiza el link en vivo (GitHub Pages) automáticamente.
 ## ⏳ Estudio Ultra-Premium (pendiente)
 - [x] **Voz en vivo** (micrófono → máster: se oye y se graba en audio/vídeo)
 - [x] Efectos vocales (pasa-altos + compresor + reverb/delay en tiempo real)
+- [x] **Efectos de voz** en tiempo real: Grave / Agudo (pitch-shifter granular),
+      Robot (ring-mod), Teléfono (banda + saturación) y Coro (armonía a la quinta).
+      Se oyen, se graban y se combinan con el Auto-Tune.
+- [x] **🗣️ Locutor IA (texto a voz)**: escribes un texto y el navegador lo dice con
+      una voz del sistema (Web Speech API), con velocidad y tono ajustables y frases
+      rápidas. 100% local y gratis; se graba con el modo "Pestaña".
 - [x] **Auto-Tune** de la voz (AudioWorklet: detección de tono + pitch-shift granular).
       Nivel pro: **escala musical** (cromática / mayor / menor + tónica), controles
       separados de **intensidad** y **velocidad de retune**, y **presets** (Natural,

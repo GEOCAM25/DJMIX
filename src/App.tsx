@@ -8,6 +8,7 @@ import { LoopStationPanel } from './components/Loops/LoopStationPanel';
 import { LightsPanel } from './components/Lights/LightsPanel';
 import { MicPanel } from './components/Mic/MicPanel';
 import { CreatorPanel } from './components/Creator/CreatorPanel';
+import { TtsPanel } from './components/Tts/TtsPanel';
 import { LibraryPanel } from './components/Library/LibraryPanel';
 import { CratesPanel } from './components/Library/CratesPanel';
 import { MacrosPanel } from './components/Macros/MacrosPanel';
@@ -31,6 +32,7 @@ const RACK_TABS: Array<{ id: string; label: string }> = [
   { id: 'auto', label: '🤖 Auto-DJ' },
   { id: 'crates', label: '📦 Crates' },
   { id: 'mic', label: '🎤 Voz/MC' },
+  { id: 'tts', label: '🗣️ Locutor' },
   { id: 'lights', label: '💡 Luces' },
   { id: 'rec', label: '🎬 Grabar' },
   { id: 'copilot', label: '🧠 Copiloto' },
@@ -54,6 +56,8 @@ function RackPanel({ id }: { id: string }) {
       return <CratesPanel />;
     case 'mic':
       return <MicPanel />;
+    case 'tts':
+      return <TtsPanel />;
     case 'lights':
       return <LightsPanel />;
     case 'rec':

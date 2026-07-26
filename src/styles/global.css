@@ -1713,5 +1713,25 @@ label.field.mic-field {
   box-shadow: 0 0 12px -3px rgba(52, 211, 153, 0.6);
 }
 
+/* ── Locutor IA (texto a voz) ─────────────────────────────────────────────── */
+.tts-text {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  resize: vertical;
+  min-height: 64px;
+}
+.tts-text:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(124, 92, 255, 0.25);
+}
+
 /* (El móvil ahora usa el layout por pestañas de más arriba; no se compactan
    los controles para conservar áreas de toque amplias.) */
