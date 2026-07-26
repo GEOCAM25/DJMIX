@@ -347,69 +347,98 @@ html[data-compact='1'] .btn-label {
   }
 }
 
-/* ── HORIZONTAL SIEMPRE: en teléfonos en vertical se rota la app por CSS ─────
-   para presentarla en landscape automáticamente (sin "gira el teléfono"). El
-   contenido se maqueta con dimensiones landscape y se gira 90° centrado.
-
-   Se rota TODO lo que ocupa pantalla completa (el tablero y las capas superpuestas
-   como el visualizador y los ajustes) para que jamás aparezca nada en vertical.
-   Cuando el teléfono ya está en horizontal, esta regla no aplica y se usa el
-   layout nativo (sin rotación), así que los botones quedan en el mismo sitio. */
-/* La rotación la controla JS (data-force-rotate) según el LADO CORTO físico, no
-   la media query de orientación: así el diseño no cambia al girar el teléfono,
-   solo se le añade la rotación cuando está en vertical. */
-html[data-force-rotate='1'],
-html[data-force-rotate='1'] body {
-  overflow: hidden;
-  height: 100%;
-}
-/* Caja rotada compartida: se maqueta en landscape (ancho = alto del viewport)
-   y se gira 90° en horario alrededor del centro para llenar la pantalla. */
-html[data-force-rotate='1'] .app.board,
-html[data-force-rotate='1'] .visualizer-overlay,
-html[data-force-rotate='1'] .overlay {
+/* ── SOLO HORIZONTAL: aviso "gira el teléfono" en vertical ───────────────────
+   BEAT DJ es un tablero de DJ y solo se usa en horizontal. En vertical, RotateGate
+   muestra este aviso a pantalla completa y bloquea la interfaz hasta girar. */
+.rotate-gate {
   position: fixed;
-  /* inset:auto PRIMERO para anular el inset:0 base de los overlays; luego
-     top/left centran la caja rotada (si se pone inset después, los pisa). */
-  inset: auto;
-  width: 100vh;
-  height: 100vw;
-  top: calc((100vh - 100vw) / 2);
-  left: calc((100vw - 100vh) / 2);
-  transform: rotate(90deg);
-  transform-origin: center center;
-  max-width: none;
-}
-html[data-force-rotate='1'] .app.board {
-  overflow-y: auto;
-  overflow-x: hidden;
-  /* Sin barra de desplazamiento visible en la vista rotada: no reserva ancho
-     (así el diseño queda idéntico al horizontal nativo) y se ve más limpio. */
-  scrollbar-width: none;
-  /* Zonas seguras mapeadas a través de la rotación 90° horaria: el borde
-     superior físico (barra de estado / isla dinámica / hora / batería) cae en
-     el borde IZQUIERDO del contenido, así que se reserva ahí. Se usa un mínimo
-     sólido con max() por si env() llega en 0 en algún navegador. */
-  padding-top: max(8px, env(safe-area-inset-right));
-  padding-right: max(8px, env(safe-area-inset-bottom));
-  padding-bottom: max(8px, env(safe-area-inset-left));
-  padding-left: max(12px, calc(10px + env(safe-area-inset-top)));
-}
-/* Los overlays van a document.body (fuera del tablero rotado): se rotan aparte
-   con las mismas dimensiones para seguir viéndose horizontales. */
-html[data-force-rotate='1'] .visualizer-overlay,
-html[data-force-rotate='1'] .overlay {
+  inset: 0;
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  background: radial-gradient(120% 120% at 50% 0%, #131a29 0%, #080b12 70%);
+  color: var(--text);
   overflow: hidden;
 }
-/* El lienzo del visualizador llena el overlay rotado (no el viewport). */
-html[data-force-rotate='1'] .visualizer-canvas {
-  width: 100%;
-  height: 100%;
+.rotate-gate-inner {
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
 }
-/* Oculta la barra de desplazamiento (WebKit) del tablero rotado. */
-html[data-force-rotate='1'] .app.board::-webkit-scrollbar {
-  width: 0;
-  height: 0;
+.rotate-gate h2 {
+  margin: 4px 0 0;
+  font-size: 22px;
+  background: linear-gradient(90deg, var(--accent-a), var(--accent-b));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.rotate-gate p {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.rotate-gate .rotate-hint {
+  font-size: 12px;
+  opacity: 0.8;
+  margin-top: 4px;
+}
+/* Teléfono animado que gira de vertical a horizontal. */
+.rotate-phone {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+}
+.rotate-phone-body {
+  width: 46px;
+  height: 82px;
+  border: 3px solid var(--accent);
+  border-radius: 12px;
+  box-shadow: 0 0 22px rgba(124, 92, 255, 0.5);
+  background: rgba(124, 92, 255, 0.08);
+  animation: rotate-phone-turn 2.4s ease-in-out infinite;
+  transform-origin: center center;
+  position: relative;
+}
+.rotate-phone-cam {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 12px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+  opacity: 0.7;
+}
+.rotate-arrow {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  width: 34px;
+  height: 34px;
+  color: var(--accent-b);
+  filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.5));
+  animation: rotate-arrow-pulse 2.4s ease-in-out infinite;
+}
+@keyframes rotate-phone-turn {
+  0%, 18% { transform: rotate(0deg); }
+  50%, 68% { transform: rotate(-90deg); }
+  100% { transform: rotate(0deg); }
+}
+@keyframes rotate-arrow-pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
 }
 
 /* ── DENSIDAD para TELÉFONO (consola compacta tipo controlador real) ─────────
@@ -1620,6 +1649,68 @@ label.field.mic-field {
   min-width: 92px;
   min-height: 38px;
   padding: 6px 8px;
+}
+.preset-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.preset-btn {
+  flex: 1;
+  min-width: 64px;
+  padding: 7px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(124, 92, 255, 0.16), rgba(124, 92, 255, 0.05));
+  border: 1px solid rgba(124, 92, 255, 0.3);
+}
+.preset-btn:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 12px -3px var(--accent);
+}
+.preset-btn.on {
+  background: linear-gradient(180deg, var(--accent), #5b3fd6);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 0 14px -3px var(--accent);
+}
+
+/* ── Estudio de Creación ──────────────────────────────────────────────────── */
+.song-steps {
+  display: grid;
+  grid-template-columns: repeat(16, 1fr);
+  gap: 4px;
+  margin-top: 12px;
+}
+.song-step {
+  height: 10px;
+  border-radius: 3px;
+  background: #1a2233;
+  border: 1px solid var(--border);
+  transition: background 0.05s, box-shadow 0.05s;
+}
+.song-step.beat {
+  background: #23304a;
+}
+.song-step.on {
+  background: linear-gradient(180deg, var(--accent-a), var(--accent-b));
+  box-shadow: 0 0 10px -1px var(--accent-a);
+  border-color: transparent;
+}
+.chip-toggle {
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 999px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+.chip-toggle.on {
+  background: linear-gradient(180deg, rgba(52, 211, 153, 0.2), rgba(52, 211, 153, 0.06));
+  border-color: rgba(52, 211, 153, 0.6);
+  color: #d1fae5;
+  box-shadow: 0 0 12px -3px rgba(52, 211, 153, 0.6);
 }
 
 /* (El móvil ahora usa el layout por pestañas de más arriba; no se compactan

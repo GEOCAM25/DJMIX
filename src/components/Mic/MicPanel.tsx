@@ -21,8 +21,10 @@ export function MicPanel() {
   const setMicEcho = useStore((s) => s.setMicEcho);
   const toggleAutotune = useStore((s) => s.toggleAutotune);
   const setAutotuneStrength = useStore((s) => s.setAutotuneStrength);
+  const setAutotuneSpeed = useStore((s) => s.setAutotuneSpeed);
   const setAutotuneKey = useStore((s) => s.setAutotuneKey);
   const setAutotuneScale = useStore((s) => s.setAutotuneScale);
+  const setAutotunePreset = useStore((s) => s.setAutotunePreset);
   const toggleTalkover = useStore((s) => s.toggleTalkover);
   const setDuckLevel = useStore((s) => s.setDuckLevel);
 
@@ -86,6 +88,25 @@ export function MicPanel() {
             </button>
           </div>
 
+          {/* Presets rápidos tipo estudio profesional. */}
+          <div className="preset-row" style={{ marginTop: 10 }}>
+            {[
+              { id: 'natural', label: 'Natural' },
+              { id: 'pop', label: 'Pop' },
+              { id: 'hard', label: 'Dura' },
+              { id: 'robot', label: 'Robot' },
+            ].map((p) => (
+              <button
+                key={p.id}
+                className="preset-btn"
+                onClick={() => setAutotunePreset(p.id as 'natural' | 'pop' | 'hard' | 'robot')}
+                title={`Preset ${p.label}`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+
           <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <label className="field mic-field">
               <span>Escala</span>
@@ -108,10 +129,10 @@ export function MicPanel() {
                 ))}
               </select>
             </label>
-            <div style={{ marginLeft: 'auto' }}>
-              <Knob label="Intensidad" value={mic.autotuneStrength} min={0} max={1} resetTo={0.9}
-                onChange={setAutotuneStrength} format={(v) => `${Math.round(v * 100)}%`} />
-            </div>
+            <Knob label="Intensidad" value={mic.autotuneStrength} min={0} max={1} resetTo={0.9}
+              onChange={setAutotuneStrength} format={(v) => `${Math.round(v * 100)}%`} />
+            <Knob label="Velocidad" value={mic.autotuneSpeed} min={0} max={1} resetTo={0.5}
+              onChange={setAutotuneSpeed} format={(v) => `${Math.round(v * 100)}%`} />
           </div>
         </div>
       </div>

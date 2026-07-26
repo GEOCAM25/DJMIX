@@ -7,8 +7,9 @@
  *
  * Params:
  *   enabled  (0/1)    — pasa la voz seca si está en 0.
- *   strength (0..1)   — cuánta corrección aplicar (1 = "duro" tipo T-Pain).
- *                       También acelera el retune (agarre más robótico).
+ *   strength (0..1)   — cuánta corrección aplicar (1 = pega del todo a la nota).
+ *   speed    (0..1)   — velocidad de retune: 0 = lento/natural, 1 = instantáneo
+ *                       (efecto duro/robótico tipo T-Pain).
  *   key      (0..11)  — tónica de la escala (0 = Do … 11 = Si).
  *   scale    (0/1/2)  — 0 cromática · 1 mayor · 2 menor natural.
  */
@@ -17,6 +18,7 @@ class AutotuneProcessor extends AudioWorkletProcessor {
     return [
       { name: 'enabled', defaultValue: 0, minValue: 0, maxValue: 1 },
       { name: 'strength', defaultValue: 0.9, minValue: 0, maxValue: 1 },
+      { name: 'speed', defaultValue: 0.5, minValue: 0, maxValue: 1 },
       { name: 'key', defaultValue: 0, minValue: 0, maxValue: 11 },
       { name: 'scale', defaultValue: 0, minValue: 0, maxValue: 2 },
     ];
@@ -166,15 +168,16 @@ class AutotuneProcessor extends AudioWorkletProcessor {
 
     const enabled = params.enabled[params.enabled.length - 1] > 0.5;
     const strength = params.strength[params.strength.length - 1];
+    const speed = params.speed[params.speed.length - 1];
     const key = params.key[params.key.length - 1];
     const scaleIdx = params.scale[params.scale.length - 1];
     const grain = this.grain;
     const half = grain / 2;
     const TWO_PI = Math.PI * 2;
 
-    // Velocidad de retune: con más intensidad, el tono "agarra" más rápido
-    // (efecto más robótico/T-Pain); con poca intensidad, glide natural.
-    this.glide = 0.0015 + strength * 0.02;
+    // Velocidad de retune independiente de la intensidad: 0 = glide lento/natural,
+    // 1 = casi instantáneo (agarre duro/robótico tipo T-Pain).
+    this.glide = 0.0012 + speed * speed * 0.05;
 
     for (let i = 0; i < input.length; i++) {
       this.buf[this.writeIndex] = input[i];

@@ -45,8 +45,14 @@ actualiza el link en vivo (GitHub Pages) automáticamente.
 - [x] **Voz en vivo** (micrófono → máster: se oye y se graba en audio/vídeo)
 - [x] Efectos vocales (pasa-altos + compresor + reverb/delay en tiempo real)
 - [x] **Auto-Tune** de la voz (AudioWorklet: detección de tono + pitch-shift granular).
-      Ahora con **escala musical** (cromática / mayor / menor + tónica) y velocidad
-      de retune según la intensidad (natural ↔ robótico tipo T-Pain).
+      Nivel pro: **escala musical** (cromática / mayor / menor + tónica), controles
+      separados de **intensidad** y **velocidad de retune**, y **presets** (Natural,
+      Pop, Dura, Robot). Se sincroniza con el tono del Estudio de Creación.
+- [x] **🎵 Estudio de Creación**: arma la base de una canción con cuatro capas
+      sintéticas (acordes + bajo + arpegio + batería) por **tono, escala, progresión
+      de acordes** (Pop, Balada, Urbano, Jazz…), instrumento (Pads/Piano/Pluck/Synth)
+      y tempo. Suena y se graba con la mezcla; comparte tono con el Auto-Tune para
+      **cantar afinado encima**. Indicador de compás en vivo.
 - [x] **Micrófono de ANIMADOR (talkover)**: mientras suena la música, la persona
       habla por el micrófono y la música se **agacha sola** (auto-ducking) y vuelve
       a subir al callar. Bus de música separado del máster (la voz nunca se agacha);
@@ -108,11 +114,11 @@ actualiza el link en vivo (GitHub Pages) automáticamente.
         `screen.orientation.lock` (Android/PWA) y rotación por CSS de respaldo que ahora
         **cubre toda la pantalla sin franjas negras** y rota también los overlays
         (visualizador/ajustes). Corregido el bug de posicionamiento (`inset:auto`).
-      · **UN SOLO diseño horizontal** (sin "horizontal falso"): el modo compacto/rotación
-        lo decide JS según el **lado corto físico** de la pantalla (no la orientación),
-        expuesto en `<html data-compact data-force-rotate>`. Así el diseño es **idéntico**
-        con el teléfono en horizontal o en vertical; al ponerlo vertical solo se añade la
-        rotación, sin cambiar nada ni quitar funciones. Verificado por paridad H/V.
+      · **UN SOLO diseño horizontal**: el modo compacto lo decide JS por el **lado
+        corto físico** de la pantalla (no la orientación), en `<html data-compact>`.
+      · **Solo horizontal**: en vertical la app muestra un aviso **"Pon el teléfono
+        en horizontal"** (RotateGate) que la bloquea hasta girar; ya no se rota el
+        contenido por CSS (nada de "horizontal falso").
       · **Consola compacta** para teléfono (densa tipo controlador real): forma de onda,
         vúmetros, faders y paneles condensados → decks + mesa visibles casi sin scroll.
       · **Indicador GLOBAL de grabación** en la barra superior (cronómetro + botón

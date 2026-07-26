@@ -6,6 +6,7 @@ import { StepSequencer } from './StepSequencer';
 import { LoopStation } from './LoopStation';
 import { LightEngine } from '../lights/LightEngine';
 import { MicInput } from './MicInput';
+import { SongEngine } from './SongEngine';
 import { createDrumSamples } from './synthSamples';
 import { Recorder } from './Recorder';
 import { CueBus, listAudioOutputs, promptSelectOutput, type AudioOutputDevice } from './CueBus';
@@ -60,6 +61,7 @@ export class AudioEngine {
   readonly loops: LoopStation;
   readonly lights: LightEngine;
   readonly mic: MicInput;
+  readonly song: SongEngine;
   readonly recorder: Recorder;
   readonly analyser: AnalyserNode;
   readonly cueBus: CueBus;
@@ -141,6 +143,12 @@ export class AudioEngine {
     // ── Micrófono / voz en vivo (entra al máster: se oye y se graba) ────────
     this.mic = new MicInput(this.ctx);
     this.mic.output.connect(this.masterGain);
+
+    // ── Estudio de Creación (acompañamiento sintético) ─────────────────────
+    // Entra a la cadena de efectos como el resto de la música: se oye, se le
+    // pueden aplicar FX del máster y se graba.
+    this.song = new SongEngine(this.ctx);
+    this.song.output.connect(this.effects.input);
 
     // ── Canales / decks ───────────────────────────────────────────────────
     this.channels = {

@@ -41,6 +41,7 @@ export class MicInput {
   private autotuneLoaded = false;
   private wantAutotune = false;
   private strengthVal = 0.9;
+  private speedVal = 0.5; // velocidad de retune (0 lento · 1 instantáneo)
   private keyVal = 0; // 0..11 (Do..Si)
   private scaleVal = 0; // 0 cromática · 1 mayor · 2 menor
 
@@ -148,6 +149,7 @@ export class MicInput {
     if (!this.autotune) return;
     this.autotune.parameters.get('enabled')!.value = this.wantAutotune ? 1 : 0;
     this.autotune.parameters.get('strength')!.value = this.strengthVal;
+    this.autotune.parameters.get('speed')!.value = this.speedVal;
     this.autotune.parameters.get('key')!.value = this.keyVal;
     this.autotune.parameters.get('scale')!.value = this.scaleVal;
   }
@@ -160,6 +162,12 @@ export class MicInput {
   setAutotuneStrength(v: number): void {
     this.strengthVal = Math.max(0, Math.min(1, v));
     if (this.autotune) this.autotune.parameters.get('strength')!.value = this.strengthVal;
+  }
+
+  /** Velocidad de retune (0 lento/natural · 1 instantáneo/duro). */
+  setAutotuneSpeed(v: number): void {
+    this.speedVal = Math.max(0, Math.min(1, v));
+    if (this.autotune) this.autotune.parameters.get('speed')!.value = this.speedVal;
   }
 
   /** Fija la escala (0 cromática · 1 mayor · 2 menor) y su tónica (0..11). */

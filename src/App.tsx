@@ -7,6 +7,7 @@ import { SequencerPanel } from './components/Sequencer/SequencerPanel';
 import { LoopStationPanel } from './components/Loops/LoopStationPanel';
 import { LightsPanel } from './components/Lights/LightsPanel';
 import { MicPanel } from './components/Mic/MicPanel';
+import { CreatorPanel } from './components/Creator/CreatorPanel';
 import { LibraryPanel } from './components/Library/LibraryPanel';
 import { CratesPanel } from './components/Library/CratesPanel';
 import { MacrosPanel } from './components/Macros/MacrosPanel';
@@ -18,11 +19,13 @@ import { AutoDjPanel } from './components/AutoDj/AutoDjPanel';
 import { SettingsPanel } from './components/Settings/SettingsPanel';
 import { Visualizer } from './components/Visualizer/Visualizer';
 import { OnboardingTour } from './components/Onboarding/OnboardingTour';
+import { RotateGate } from './components/Onboarding/RotateGate';
 import { useInstallPrompt } from './pwa/pwa';
 
 /** Pestañas del "rack" inferior (todo lo que no es la consola principal). */
 const RACK_TABS: Array<{ id: string; label: string }> = [
   { id: 'lib', label: '📚 Biblioteca' },
+  { id: 'create', label: '🎵 Crear' },
   { id: 'seq', label: '🥁 Ritmo' },
   { id: 'loop', label: '🔁 Loops' },
   { id: 'auto', label: '🤖 Auto-DJ' },
@@ -39,6 +42,8 @@ function RackPanel({ id }: { id: string }) {
   switch (id) {
     case 'lib':
       return <LibraryPanel />;
+    case 'create':
+      return <CreatorPanel />;
     case 'seq':
       return <SequencerPanel />;
     case 'loop':
@@ -97,14 +102,16 @@ export function App() {
   if (!started) {
     return (
       <div className="overlay">
+        <RotateGate />
         <div className="panel card">
           <img src={logoSrc} alt="BEAT DJ" className="overlay-logo" />
           <h1>
             BEAT <span style={{ background: 'linear-gradient(90deg,var(--accent-a),var(--accent-b))', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>DJ</span>
           </h1>
           <p style={{ color: 'var(--text-dim)' }}>
-            Estudio de mezcla DJ · 100% gratis, privado y local. Mezcla YouTube y tus
-            archivos, graba tus sets y deja que el copiloto de IA te asista.
+            Estudio de DJ y creación musical · 100% gratis, privado y local. Mezcla
+            YouTube y tus archivos, <strong>crea canciones</strong>, canta con
+            <strong> Auto-Tune</strong>, anima con el micrófono y graba tus sets.
           </p>
           <button
             className="primary"
@@ -115,7 +122,7 @@ export function App() {
           </button>
           <p style={{ marginTop: 14 }}>
             <small className="hint">
-              Se ve mejor en horizontal · Nada se sube a ningún servidor: todo en tu navegador.
+              Úsala en horizontal 📱↔️ · Nada se sube a ningún servidor: todo en tu navegador.
             </small>
           </p>
         </div>
@@ -179,6 +186,7 @@ export function App() {
       {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
       {showVisualizer && <Visualizer onClose={() => setShowVisualizer(false)} />}
       <OnboardingTour />
+      <RotateGate />
 
       <footer className="board-footer">BEAT DJ — Creado por Ricardo Soto</footer>
     </div>

@@ -23,6 +23,7 @@ import { MidiController, type MidiMessage } from '../midi/MidiController';
 import { applyMidiTarget, controlKey, MIDI_TARGETS } from '../midi/mappings';
 import { emptySteps, type SeqRow } from '../audio/StepSequencer';
 import type { LoopSlotState } from '../audio/LoopStation';
+import type { SongInstrument } from '../audio/SongEngine';
 import { crateMatches, type CrateRule, type SmartCrate } from '../library/crates';
 import { runMacro, type Macro, type MacroStep } from '../macros/macros';
 import { BleLight, bluetoothLightSupported } from '../lights/bleLight';
@@ -216,11 +217,26 @@ interface StoreState {
     echo: number;
     autotune: boolean;
     autotuneStrength: number;
+    autotuneSpeed: number; // velocidad de retune (0 lento · 1 instantáneo)
     autotuneKey: number; // 0..11 (Do..Si)
     autotuneScale: number; // 0 = cromática, 1 = mayor, 2 = menor
     talkover: boolean; // modo animador (auto-ducking)
     duckLevel: number; // nivel de la música al hablar (0..1)
   };
+  song: {
+    playing: boolean;
+    key: number; // 0..11 (Do..Si)
+    scaleMinor: boolean; // false = mayor, true = menor
+    tempo: number; // BPM
+    progression: string; // id de progresión
+    instrument: SongInstrument;
+    bass: boolean;
+    arp: boolean;
+    drums: boolean;
+    volume: number;
+  };
+  /** Paso actual (0..15) del Estudio de Creación, para el indicador visual. */
+  songStep: number;
   recording: boolean;
   /** ¿Se está grabando vídeo de la sesión? */
   videoRecording: boolean;
@@ -388,10 +404,21 @@ interface StoreState {
   setMicEcho: (v: number) => void;
   toggleAutotune: () => void;
   setAutotuneStrength: (v: number) => void;
+  setAutotuneSpeed: (v: number) => void;
   setAutotuneKey: (key: number) => void;
   setAutotuneScale: (scale: number) => void;
+  setAutotunePreset: (preset: 'natural' | 'pop' | 'hard' | 'robot') => void;
   toggleTalkover: () => void;
   setDuckLevel: (v: number) => void;
+  // ── Estudio de Creación ──
+  songToggle: () => Promise<void>;
+  setSongKey: (key: number) => void;
+  setSongScale: (minor: boolean) => void;
+  setSongTempo: (bpm: number) => void;
+  setSongProgression: (id: string) => void;
+  setSongInstrument: (inst: SongInstrument) => void;
+  toggleSongLayer: (layer: 'bass' | 'arp' | 'drums') => void;
+  setSongVolume: (v: number) => void;
 
   // ── Respaldo (Bring Your Own Cloud) ────────────────────────────────────────
   downloadBackup: (includeBlobs: boolean) => Promise<void>;
@@ -474,11 +501,25 @@ export const useStore = create<StoreState>((set, get) => ({
     echo: 0,
     autotune: false,
     autotuneStrength: 0.9,
+    autotuneSpeed: 0.5,
     autotuneKey: 0,
     autotuneScale: 0,
     talkover: false,
     duckLevel: 0.28,
   },
+  song: {
+    playing: false,
+    key: 0,
+    scaleMinor: false,
+    tempo: 100,
+    progression: 'pop',
+    instrument: 'pads',
+    bass: true,
+    arp: false,
+    drums: true,
+    volume: 0.9,
+  },
+  songStep: -1,
   recording: false,
   videoRecording: false,
   status: { busy: false, message: '', progress: 0 },
@@ -1617,6 +1658,7 @@ export const useStore = create<StoreState>((set, get) => ({
       engine.mic.setEcho(mic.echo);
       engine.mic.setAutotuneScale(mic.autotuneScale, mic.autotuneKey);
       engine.mic.setAutotuneStrength(mic.autotuneStrength);
+      engine.mic.setAutotuneSpeed(mic.autotuneSpeed);
       engine.mic.setAutotune(mic.autotune);
       engine.setTalkoverDuck(mic.duckLevel);
       engine.setTalkover(mic.talkover);
@@ -1647,6 +1689,27 @@ export const useStore = create<StoreState>((set, get) => ({
     get().engine?.mic.setAutotuneStrength(v);
     set((s) => ({ mic: { ...s.mic, autotuneStrength: v } }));
   },
+  setAutotuneSpeed(v) {
+    const sp = Math.max(0, Math.min(1, v));
+    get().engine?.mic.setAutotuneSpeed(sp);
+    set((s) => ({ mic: { ...s.mic, autotuneSpeed: sp } }));
+  },
+  setAutotunePreset(preset) {
+    // Presets de "amount" (intensidad) + "speed" (velocidad de retune).
+    const map = {
+      natural: { strength: 0.45, speed: 0.2 },
+      pop: { strength: 0.8, speed: 0.5 },
+      hard: { strength: 1.0, speed: 0.9 },
+      robot: { strength: 1.0, speed: 1.0 },
+    } as const;
+    const p = map[preset];
+    const eng = get().engine;
+    eng?.mic.setAutotuneStrength(p.strength);
+    eng?.mic.setAutotuneSpeed(p.speed);
+    // Al elegir un preset, el Auto-Tune se enciende para oírlo al momento.
+    eng?.mic.setAutotune(true);
+    set((s) => ({ mic: { ...s.mic, autotuneStrength: p.strength, autotuneSpeed: p.speed, autotune: true } }));
+  },
   setAutotuneKey(key) {
     const k = ((Math.round(key) % 12) + 12) % 12;
     get().engine?.mic.setAutotuneScale(get().mic.autotuneScale, k);
@@ -1666,6 +1729,71 @@ export const useStore = create<StoreState>((set, get) => ({
     const lv = Math.max(0, Math.min(1, v));
     get().engine?.setTalkoverDuck(lv);
     set((s) => ({ mic: { ...s.mic, duckLevel: lv } }));
+  },
+
+  // ── Estudio de Creación ────────────────────────────────────────────────────
+  async songToggle() {
+    const { engine, song } = get();
+    if (!engine) return;
+    if (song.playing) {
+      engine.song.stop();
+      set((s) => ({ song: { ...s.song, playing: false }, songStep: -1 }));
+      return;
+    }
+    await engine.resume();
+    // Aplica todos los parámetros actuales antes de arrancar.
+    engine.song.setKey(song.key);
+    engine.song.setScaleMinor(song.scaleMinor);
+    engine.song.setTempo(song.tempo);
+    engine.song.setProgression(song.progression);
+    engine.song.setInstrument(song.instrument);
+    engine.song.setBass(song.bass);
+    engine.song.setArp(song.arp);
+    engine.song.setDrums(song.drums);
+    engine.song.setVolume(song.volume);
+    engine.song.start((barStep) => set({ songStep: barStep }));
+    set((s) => ({ song: { ...s.song, playing: true }, status: { busy: false, message: '🎵 Creando música…', progress: 1 } }));
+  },
+  setSongKey(key) {
+    const k = ((Math.round(key) % 12) + 12) % 12;
+    get().engine?.song.setKey(k);
+    // La voz se afina al mismo tono/escala que la música (Auto-Tune).
+    const minor = get().song.scaleMinor;
+    get().engine?.mic.setAutotuneScale(minor ? 2 : 1, k);
+    set((s) => ({ song: { ...s.song, key: k }, mic: { ...s.mic, autotuneKey: k, autotuneScale: minor ? 2 : 1 } }));
+  },
+  setSongScale(minor) {
+    get().engine?.song.setScaleMinor(minor);
+    const k = get().song.key;
+    get().engine?.mic.setAutotuneScale(minor ? 2 : 1, k);
+    set((s) => ({ song: { ...s.song, scaleMinor: minor }, mic: { ...s.mic, autotuneScale: minor ? 2 : 1 } }));
+  },
+  setSongTempo(bpm) {
+    const t = Math.max(60, Math.min(180, Math.round(bpm)));
+    get().engine?.song.setTempo(t);
+    set((s) => ({ song: { ...s.song, tempo: t } }));
+  },
+  setSongProgression(id) {
+    get().engine?.song.setProgression(id);
+    set((s) => ({ song: { ...s.song, progression: id } }));
+  },
+  setSongInstrument(inst) {
+    get().engine?.song.setInstrument(inst);
+    set((s) => ({ song: { ...s.song, instrument: inst } }));
+  },
+  toggleSongLayer(layer) {
+    const cur = get().song[layer];
+    const next = !cur;
+    const eng = get().engine;
+    if (layer === 'bass') eng?.song.setBass(next);
+    else if (layer === 'arp') eng?.song.setArp(next);
+    else eng?.song.setDrums(next);
+    set((s) => ({ song: { ...s.song, [layer]: next } }));
+  },
+  setSongVolume(v) {
+    const vol = Math.max(0, Math.min(1.2, v));
+    get().engine?.song.setVolume(vol);
+    set((s) => ({ song: { ...s.song, volume: vol } }));
   },
 
   addMacro(name, steps) {
