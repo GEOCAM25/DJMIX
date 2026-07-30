@@ -28,6 +28,7 @@ export function MicPanel() {
   const toggleTalkover = useStore((s) => s.toggleTalkover);
   const setDuckLevel = useStore((s) => s.setDuckLevel);
   const setVoiceEffect = useStore((s) => s.setVoiceEffect);
+  const setVoiceAmount = useStore((s) => s.setVoiceAmount);
 
   return (
     <div className="panel">
@@ -75,6 +76,17 @@ export function MicPanel() {
               </button>
             ))}
           </div>
+          {mic.voiceEffect !== 'none' && (
+            <div style={{ marginTop: 10 }}>
+              <Fader
+                label={`Intensidad del efecto ${Math.round(mic.voiceAmount * 100)}%`}
+                value={mic.voiceAmount}
+                min={0}
+                max={1}
+                onChange={setVoiceAmount}
+              />
+            </div>
+          )}
         </div>
 
         {/* ── Animador (talkover con auto-ducking) ─────────────────────────── */}

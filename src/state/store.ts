@@ -23,7 +23,8 @@ import { MidiController, type MidiMessage } from '../midi/MidiController';
 import { applyMidiTarget, controlKey, MIDI_TARGETS } from '../midi/mappings';
 import { emptySteps, type SeqRow } from '../audio/StepSequencer';
 import type { LoopSlotState } from '../audio/LoopStation';
-import type { SongInstrument } from '../audio/SongEngine';
+import { renderSongToBuffer, type SongInstrument, type SongParams } from '../audio/SongEngine';
+import { encodeWav } from '../media/wav';
 import type { VoiceEffect } from '../audio/MicInput';
 import { crateMatches, type CrateRule, type SmartCrate } from '../library/crates';
 import { runMacro, type Macro, type MacroStep } from '../macros/macros';
@@ -224,6 +225,7 @@ interface StoreState {
     talkover: boolean; // modo animador (auto-ducking)
     duckLevel: number; // nivel de la música al hablar (0..1)
     voiceEffect: VoiceEffect; // efecto de voz (grave/agudo/robot/teléfono/coro)
+    voiceAmount: number; // intensidad del efecto de voz (0..1)
   };
   song: {
     playing: boolean;
@@ -236,9 +238,14 @@ interface StoreState {
     arp: boolean;
     drums: boolean;
     volume: number;
+    swing: number; // 0..0.6 (groove)
+    structure: boolean; // estructura intro/verso/coro/puente
+    exportBars: number; // compases a exportar en WAV
   };
   /** Paso actual (0..15) del Estudio de Creación, para el indicador visual. */
   songStep: number;
+  /** Compás actual del Estudio de Creación (para sección y acorde). */
+  songBar: number;
   recording: boolean;
   /** ¿Se está grabando vídeo de la sesión? */
   videoRecording: boolean;
@@ -413,6 +420,7 @@ interface StoreState {
   toggleTalkover: () => void;
   setDuckLevel: (v: number) => void;
   setVoiceEffect: (e: VoiceEffect) => void;
+  setVoiceAmount: (v: number) => void;
   // ── Estudio de Creación ──
   songToggle: () => Promise<void>;
   setSongKey: (key: number) => void;
@@ -422,6 +430,10 @@ interface StoreState {
   setSongInstrument: (inst: SongInstrument) => void;
   toggleSongLayer: (layer: 'bass' | 'arp' | 'drums') => void;
   setSongVolume: (v: number) => void;
+  setSongSwing: (v: number) => void;
+  toggleSongStructure: () => void;
+  setSongExportBars: (bars: number) => void;
+  exportSongWav: () => Promise<void>;
 
   // ── Respaldo (Bring Your Own Cloud) ────────────────────────────────────────
   downloadBackup: (includeBlobs: boolean) => Promise<void>;
@@ -510,6 +522,7 @@ export const useStore = create<StoreState>((set, get) => ({
     talkover: false,
     duckLevel: 0.28,
     voiceEffect: 'none',
+    voiceAmount: 1,
   },
   song: {
     playing: false,
@@ -522,8 +535,12 @@ export const useStore = create<StoreState>((set, get) => ({
     arp: false,
     drums: true,
     volume: 0.9,
+    swing: 0,
+    structure: false,
+    exportBars: 32,
   },
   songStep: -1,
+  songBar: 0,
   recording: false,
   videoRecording: false,
   status: { busy: false, message: '', progress: 0 },
@@ -1664,6 +1681,7 @@ export const useStore = create<StoreState>((set, get) => ({
       engine.mic.setAutotuneStrength(mic.autotuneStrength);
       engine.mic.setAutotuneSpeed(mic.autotuneSpeed);
       engine.mic.setAutotune(mic.autotune);
+      engine.mic.setVoiceAmount(mic.voiceAmount);
       engine.mic.setVoiceEffect(mic.voiceEffect);
       engine.setTalkoverDuck(mic.duckLevel);
       engine.setTalkover(mic.talkover);
@@ -1739,6 +1757,11 @@ export const useStore = create<StoreState>((set, get) => ({
     get().engine?.mic.setVoiceEffect(e);
     set((s) => ({ mic: { ...s.mic, voiceEffect: e } }));
   },
+  setVoiceAmount(v) {
+    const a = Math.max(0, Math.min(1, v));
+    get().engine?.mic.setVoiceAmount(a);
+    set((s) => ({ mic: { ...s.mic, voiceAmount: a } }));
+  },
 
   // ── Estudio de Creación ────────────────────────────────────────────────────
   async songToggle() {
@@ -1746,7 +1769,7 @@ export const useStore = create<StoreState>((set, get) => ({
     if (!engine) return;
     if (song.playing) {
       engine.song.stop();
-      set((s) => ({ song: { ...s.song, playing: false }, songStep: -1 }));
+      set((s) => ({ song: { ...s.song, playing: false }, songStep: -1, songBar: 0 }));
       return;
     }
     await engine.resume();
@@ -1759,8 +1782,10 @@ export const useStore = create<StoreState>((set, get) => ({
     engine.song.setBass(song.bass);
     engine.song.setArp(song.arp);
     engine.song.setDrums(song.drums);
+    engine.song.setSwing(song.swing);
+    engine.song.setStructure(song.structure);
     engine.song.setVolume(song.volume);
-    engine.song.start((barStep) => set({ songStep: barStep }));
+    engine.song.start((barStep, bar) => set({ songStep: barStep, songBar: bar }));
     set((s) => ({ song: { ...s.song, playing: true }, status: { busy: false, message: '🎵 Creando música…', progress: 1 } }));
   },
   setSongKey(key) {
@@ -1803,6 +1828,48 @@ export const useStore = create<StoreState>((set, get) => ({
     const vol = Math.max(0, Math.min(1.2, v));
     get().engine?.song.setVolume(vol);
     set((s) => ({ song: { ...s.song, volume: vol } }));
+  },
+  setSongSwing(v) {
+    const sw = Math.max(0, Math.min(0.6, v));
+    get().engine?.song.setSwing(sw);
+    set((s) => ({ song: { ...s.song, swing: sw } }));
+  },
+  toggleSongStructure() {
+    const on = !get().song.structure;
+    get().engine?.song.setStructure(on);
+    set((s) => ({ song: { ...s.song, structure: on } }));
+  },
+  setSongExportBars(bars) {
+    const b = Math.max(4, Math.min(128, Math.round(bars)));
+    set((s) => ({ song: { ...s.song, exportBars: b } }));
+  },
+
+  /** Renderiza la canción actual (offline) y la descarga como WAV. */
+  async exportSongWav() {
+    const { song } = get();
+    const params: SongParams = {
+      key: song.key,
+      scaleMinor: song.scaleMinor,
+      tempo: song.tempo,
+      progression: song.progression,
+      instrument: song.instrument,
+      bass: song.bass,
+      arp: song.arp,
+      drums: song.drums,
+      swing: song.swing,
+      structure: song.structure,
+    };
+    set({ status: { busy: true, message: `Generando ${song.exportBars} compases…`, progress: 0.3 } });
+    try {
+      const buffer = await renderSongToBuffer(params, song.exportBars);
+      const blob = encodeWav(buffer);
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+      downloadBlob(blob, `beat-dj-cancion-${stamp}.wav`);
+      const secs = Math.round(buffer.duration);
+      set({ status: { busy: false, message: `Canción exportada (${secs}s WAV)`, progress: 1 } });
+    } catch (err) {
+      set({ status: { busy: false, message: `No se pudo exportar: ${(err as Error).message}`, progress: 0 } });
+    }
   },
 
   addMacro(name, steps) {

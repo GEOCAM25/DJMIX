@@ -46,7 +46,8 @@ actualiza el link en vivo (GitHub Pages) automáticamente.
 - [x] Efectos vocales (pasa-altos + compresor + reverb/delay en tiempo real)
 - [x] **Efectos de voz** en tiempo real: Grave / Agudo (pitch-shifter granular),
       Robot (ring-mod), Teléfono (banda + saturación) y Coro (armonía a la quinta).
-      Se oyen, se graban y se combinan con el Auto-Tune.
+      Se oyen, se graban y se combinan con el Auto-Tune. Con **intensidad ajustable**
+      (mezcla continua entre voz natural y efecto a tope).
 - [x] **🗣️ Locutor IA (texto a voz)**: escribes un texto y el navegador lo dice con
       una voz del sistema (Web Speech API), con velocidad y tono ajustables y frases
       rápidas. 100% local y gratis; se graba con el modo "Pestaña".
@@ -56,9 +57,14 @@ actualiza el link en vivo (GitHub Pages) automáticamente.
       Pop, Dura, Robot). Se sincroniza con el tono del Estudio de Creación.
 - [x] **🎵 Estudio de Creación**: arma la base de una canción con cuatro capas
       sintéticas (acordes + bajo + arpegio + batería) por **tono, escala, progresión
-      de acordes** (Pop, Balada, Urbano, Jazz…), instrumento (Pads/Piano/Pluck/Synth)
-      y tempo. Suena y se graba con la mezcla; comparte tono con el Auto-Tune para
-      **cantar afinado encima**. Indicador de compás en vivo.
+      de acordes** (12 progresiones: Pop, Balada, Urbano, Trap, Reggaetón, Jazz,
+      Lo-Fi, Canon, Blues…), instrumento (Pads/Piano/Pluck/Synth) y tempo. Suena y se
+      graba con la mezcla; comparte tono con el Auto-Tune para **cantar afinado
+      encima**. Indicador de compás en vivo + **sección y acorde que suenan ahora**.
+- [x] **Estructura de canción**: Intro → Verso → Coro → Puente → Coro (32 compases)
+      con densidad y dinámica variables, como una canción real. Más **swing/groove**.
+- [x] **Exportar la canción a WAV**: render offline (OfflineAudioContext) de 8 a 128
+      compases con limitador, descargado como .wav. Todo en el dispositivo.
 - [x] **Micrófono de ANIMADOR (talkover)**: mientras suena la música, la persona
       habla por el micrófono y la música se **agacha sola** (auto-ducking) y vuelve
       a subir al callar. Bus de música separado del máster (la voz nunca se agacha);
@@ -129,6 +135,10 @@ actualiza el link en vivo (GitHub Pages) automáticamente.
         vúmetros, faders y paneles condensados → decks + mesa visibles casi sin scroll.
       · **Indicador GLOBAL de grabación** en la barra superior (cronómetro + botón
         Detener siempre a mano, para audio y vídeo).
+- [x] **v6 — Atajos de teclado profesionales**: transporte (Q/P), cue (W/O), sync
+      (E/I), hot cues (A/L y 1-3 / 8-0), tempo (Z/X y ,/.), pre-escucha (H/J),
+      crossfader (←/→), máster (↑/↓), grabar (R), micrófono (M), base musical (B),
+      visualizador (V) y ayuda (?). Se desactivan al escribir en un campo de texto.
 - [ ] Más pulido visual (jog wheels, skins, animaciones) — continuo
 
 ## ⏳ Marca, empaquetado y v2

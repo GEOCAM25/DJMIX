@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useStore } from './state/store';
 import { DeckPanel } from './components/Deck/DeckPanel';
 import { MixerPanel } from './components/Mixer/MixerPanel';
@@ -21,6 +21,8 @@ import { SettingsPanel } from './components/Settings/SettingsPanel';
 import { Visualizer } from './components/Visualizer/Visualizer';
 import { OnboardingTour } from './components/Onboarding/OnboardingTour';
 import { RotateGate } from './components/Onboarding/RotateGate';
+import { ShortcutsHelp } from './components/Onboarding/ShortcutsHelp';
+import { useShortcuts } from './ui/shortcuts';
 import { useInstallPrompt } from './pwa/pwa';
 
 /** Pestañas del "rack" inferior (todo lo que no es la consola principal). */
@@ -90,16 +92,24 @@ export function App() {
   const status = useStore((s) => s.status);
   const [showSettings, setShowSettings] = useState(false);
   const [showVisualizer, setShowVisualizer] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   const [rackTab, setRackTab] = useState('lib');
   const { available: canInstall, install } = useInstallPrompt();
 
-  // Cerrar el visualizador con Esc.
-  useEffect(() => {
-    if (!showVisualizer) return;
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setShowVisualizer(false);
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [showVisualizer]);
+  // Atajos de teclado profesionales (transporte, cues, mezcla, grabación…).
+  const shortcutHandlers = useMemo(
+    () => ({
+      toggleVisualizer: () => setShowVisualizer((v) => !v),
+      toggleHelp: () => setShowHelp((v) => !v),
+      closeOverlays: () => {
+        setShowVisualizer(false);
+        setShowSettings(false);
+        setShowHelp(false);
+      },
+    }),
+    [],
+  );
+  useShortcuts(shortcutHandlers);
 
   const logoSrc = `${import.meta.env.BASE_URL}logo.png`;
 
@@ -157,6 +167,9 @@ export function App() {
           <button className="mini-btn" style={{ marginLeft: 10 }} onClick={() => setShowVisualizer(true)} title="Visualizador">
             ✦<span className="btn-label"> Visualizador</span>
           </button>
+          <button className="mini-btn" style={{ marginLeft: 6 }} onClick={() => setShowHelp(true)} title="Atajos de teclado (?)">
+            ⌨<span className="btn-label"> Atajos</span>
+          </button>
           <button className="mini-btn" style={{ marginLeft: 6 }} onClick={() => setShowSettings(true)} title="Ajustes">
             ⚙<span className="btn-label"> Ajustes</span>
           </button>
@@ -189,6 +202,7 @@ export function App() {
 
       {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
       {showVisualizer && <Visualizer onClose={() => setShowVisualizer(false)} />}
+      {showHelp && <ShortcutsHelp onClose={() => setShowHelp(false)} />}
       <OnboardingTour />
       <RotateGate />
 

@@ -63,6 +63,8 @@ export class MicInput {
   private pitchNode: AudioWorkletNode | null = null;
   private pitchLoaded = false;
   private voiceEffect: VoiceEffect = 'none';
+  /** Intensidad del efecto de voz (0 = natural, 1 = a tope). */
+  private voiceAmount = 1;
 
   // Auto-Tune (AudioWorklet) — se inserta entre el compresor y el FX.
   private autotune: AudioWorkletNode | null = null;
@@ -116,7 +118,7 @@ export class MicInput {
     this.fxDry.gain.value = 1; // por defecto: voz sin efecto
 
     this.pitchGain = ctx.createGain();
-    this.pitchGain.gain.value = 0; // el pitch-shifter se conecta en loadPitchShift()
+    this.pitchGain.gain.value = 0; // la ENTRADA (worklet) se engancha en loadPitchShift()
 
     // Ring-mod (Robot): preFx → ringMul → voiced; la portadora modula ringMul.gain.
     this.ringMul = ctx.createGain();
@@ -143,6 +145,9 @@ export class MicInput {
     this.hp.connect(this.comp).connect(this.preFx);
     // preFx → ramales de efectos de voz → voiced
     this.preFx.connect(this.fxDry).connect(this.voiced);
+    // El ramal de tono (Grave/Agudo/Coro) ya cuelga de `voiced`; su entrada la
+    // conecta loadPitchShift(). Sin esta salida el efecto no llegaría a oírse.
+    this.pitchGain.connect(this.voiced);
     this.preFx.connect(this.ringMul).connect(this.voiced);
     this.preFx.connect(this.phoneBP).connect(this.phoneShaper).connect(this.phoneGain).connect(this.voiced);
     // voiced → dry + reverb + delay → salida
@@ -200,7 +205,7 @@ export class MicInput {
       this.pitchNode = node;
       this.pitchLoaded = true;
       // Reaplica el efecto elegido por si se seleccionó antes de cargar.
-      this.setVoiceEffect(this.voiceEffect);
+      this.applyVoiceMix();
     } catch {
       this.pitchNode = null;
     }
@@ -216,46 +221,72 @@ export class MicInput {
    */
   setVoiceEffect(effect: VoiceEffect): void {
     this.voiceEffect = effect;
-    const t = this.ctx.currentTime;
-    const ramp = (g: GainNode, v: number) => g.gain.setTargetAtTime(v, t, 0.02);
-    // Estado neutro.
-    ramp(this.fxDry, 1);
-    ramp(this.pitchGain, 0);
-    ramp(this.carrierGain, 0);
-    ramp(this.phoneGain, 0);
+    this.applyVoiceMix();
+  }
 
-    switch (effect) {
+  /**
+   * Intensidad del efecto (0 = voz natural, 1 = efecto al máximo). Permite
+   * dosificarlo: p. ej. un "grave" sutil o un robot a tope.
+   */
+  setVoiceAmount(v: number): void {
+    this.voiceAmount = Math.max(0, Math.min(1, v));
+    this.applyVoiceMix();
+  }
+
+  /**
+   * Calcula las ganancias de cada ramal según el efecto elegido y su intensidad.
+   * `amount` interpola entre la voz natural y el efecto a pleno.
+   */
+  private applyVoiceMix(): void {
+    const t = this.ctx.currentTime;
+    const a = this.voiceAmount;
+    const ramp = (g: GainNode, v: number) => g.gain.setTargetAtTime(v, t, 0.02);
+    // Estado neutro (voz natural).
+    let dry = 1;
+    let pitch = 0;
+    let ring = 0;
+    let phone = 0;
+
+    switch (this.voiceEffect) {
       case 'deep': // voz grave (−6 semitonos aprox.)
-        ramp(this.fxDry, 0);
         this.setPitchRatio(0.7);
-        ramp(this.pitchGain, 1);
+        dry = 1 - a;
+        pitch = a;
         break;
-      case 'high': // voz aguda / ardilla (+6 semitonos aprox.)
-        ramp(this.fxDry, 0);
+      case 'high': // voz aguda / ardilla (+7 semitonos aprox.)
         this.setPitchRatio(1.5);
-        ramp(this.pitchGain, 1);
+        dry = 1 - a;
+        pitch = a;
         break;
-      case 'robot': // ring-mod metálico
-        ramp(this.fxDry, 0.28);
-        ramp(this.carrierGain, 1);
+      case 'robot': // ring-mod metálico (deja algo de voz seca para inteligibilidad)
+        dry = 1 - a * 0.72;
+        ring = a;
         break;
       case 'phone': // banda estrecha + saturación
-        ramp(this.fxDry, 0);
-        ramp(this.phoneGain, 1);
+        dry = 1 - a;
+        phone = a;
         break;
-      case 'choir': // armonía: voz + una quinta arriba
-        ramp(this.fxDry, 1);
+      case 'choir': // armonía: voz + una quinta arriba (la seca se mantiene)
         this.setPitchRatio(1.4983);
-        ramp(this.pitchGain, 0.55);
+        pitch = a * 0.55;
         break;
       case 'none':
       default:
         break;
     }
+
+    ramp(this.fxDry, dry);
+    ramp(this.pitchGain, pitch);
+    ramp(this.carrierGain, ring);
+    ramp(this.phoneGain, phone);
   }
 
   get currentVoiceEffect(): VoiceEffect {
     return this.voiceEffect;
+  }
+
+  get currentVoiceAmount(): number {
+    return this.voiceAmount;
   }
 
   /** Carga el worklet de Auto-Tune y lo inserta entre el compresor y el FX. */

@@ -27,11 +27,44 @@ export const PROGRESSIONS: Progression[] = [
   { id: 'emotiva', name: 'Emotiva (vi–IV–I–V)', degrees: [5, 3, 0, 4] },
   { id: 'urbano', name: 'Urbano (i–VI–III–VII)', degrees: [0, 5, 2, 6] },
   { id: 'jazz', name: 'Jazz (ii–V–I–I)', degrees: [1, 4, 0, 0] },
-  { id: 'andina', name: 'Épica (I–IV–V–IV)', degrees: [0, 3, 4, 3] },
+  { id: 'epica', name: 'Épica (I–IV–V–IV)', degrees: [0, 3, 4, 3] },
+  { id: 'trap', name: 'Trap (i–VII–VI–VII)', degrees: [0, 6, 5, 6] },
+  { id: 'reggaeton', name: 'Reggaetón (i–VI–VII–V)', degrees: [0, 5, 6, 4] },
+  { id: 'canon', name: 'Canon (I–V–vi–iii–IV)', degrees: [0, 4, 5, 2, 3] },
+  { id: 'blues', name: 'Blues (I–I–IV–I–V–IV)', degrees: [0, 0, 3, 0, 4, 3] },
+  { id: 'lofi', name: 'Lo-Fi (ii–V–I–vi)', degrees: [1, 4, 0, 5] },
+  { id: 'drama', name: 'Dramática (i–iv–VII–III)', degrees: [0, 3, 6, 2] },
 ];
+
+/** Sección de la estructura de canción (se repite en bucle). */
+export interface Section {
+  name: string;
+  bars: number;
+  drums: boolean;
+  bass: boolean;
+  arp: boolean;
+  /** Multiplicador de volumen de la sección (dinámica). */
+  level: number;
+}
+
+/**
+ * Estructura estándar de 32 compases: la energía sube y baja como en una canción
+ * real (intro suave → verso → coro pleno → puente → coro final).
+ */
+export const SONG_STRUCTURE: Section[] = [
+  { name: 'Intro', bars: 4, drums: false, bass: false, arp: true, level: 0.68 },
+  { name: 'Verso', bars: 8, drums: true, bass: true, arp: false, level: 0.86 },
+  { name: 'Coro', bars: 8, drums: true, bass: true, arp: true, level: 1 },
+  { name: 'Puente', bars: 4, drums: false, bass: true, arp: true, level: 0.78 },
+  { name: 'Coro final', bars: 8, drums: true, bass: true, arp: true, level: 1 },
+];
+
+/** Compases totales de una vuelta completa a la estructura. */
+export const STRUCTURE_BARS = SONG_STRUCTURE.reduce((n, s) => n + s.bars, 0);
 
 const MAJOR = [0, 2, 4, 5, 7, 9, 11];
 const MINOR = [0, 2, 3, 5, 7, 8, 10];
+const NOTE_NAMES = ['Do', 'Do#', 'Re', 'Re#', 'Mi', 'Fa', 'Fa#', 'Sol', 'Sol#', 'La', 'La#', 'Si'];
 
 interface VoiceOpts {
   types: Array<{ type: OscillatorType; detune?: number; gain?: number }>;
@@ -55,7 +88,9 @@ function midiToFreq(midi: number): number {
 
 export class SongEngine {
   readonly output: GainNode;
-  private readonly ctx: AudioContext;
+  private readonly ctx: BaseAudioContext;
+  /** En render offline no se programan limpiezas por temporizador (no aplica). */
+  private readonly offline: boolean;
 
   private readonly chordsGain: GainNode;
   private readonly bassGain: GainNode;
@@ -72,6 +107,10 @@ export class SongEngine {
   private bassOn = true;
   private arpOn = false;
   private drumsOn = true;
+  /** Swing 0..0.6: retrasa las semicorcheas impares para dar "groove". */
+  private swing = 0;
+  /** Estructura de canción (intro/verso/coro/puente) en vez de densidad fija. */
+  private structureOn = false;
 
   // Scheduler
   private playing = false;
@@ -82,8 +121,9 @@ export class SongEngine {
   private timer: number | null = null;
   private onStep: ((barStep: number, bar: number) => void) | null = null;
 
-  constructor(ctx: AudioContext) {
+  constructor(ctx: BaseAudioContext) {
     this.ctx = ctx;
+    this.offline = typeof OfflineAudioContext !== 'undefined' && ctx instanceof OfflineAudioContext;
     this.output = ctx.createGain();
     this.output.gain.value = 0.9;
 
@@ -131,6 +171,14 @@ export class SongEngine {
   }
   setDrums(on: boolean): void {
     this.drumsOn = on;
+  }
+  /** Swing/groove (0 = recto, 0.6 = muy "arrastrado"). */
+  setSwing(v: number): void {
+    this.swing = Math.max(0, Math.min(0.6, v));
+  }
+  /** Activa la estructura de canción (intro/verso/coro/puente en bucle). */
+  setStructure(on: boolean): void {
+    this.structureOn = on;
   }
   setVolume(v: number): void {
     this.output.gain.setTargetAtTime(Math.max(0, Math.min(1.2, v)), this.ctx.currentTime, 0.02);
@@ -188,46 +236,95 @@ export class SongEngine {
     return tones;
   }
 
+  /** Nombre legible del acorde de un grado (p. ej. "Lam", "Sol", "Sidim"). */
+  chordName(degree: number): string {
+    const [root, third, fifth] = this.chordMidis(degree);
+    const name = NOTE_NAMES[((root % 12) + 12) % 12];
+    const t = third - root;
+    const f = fifth - root;
+    if (t === 3 && f === 6) return `${name}dim`;
+    if (t === 4 && f === 8) return `${name}aug`;
+    if (t === 3) return `${name}m`;
+    return name;
+  }
+
+  /** Grado que suena en un compás dado. */
+  degreeAtBar(bar: number): number {
+    const d = this.progression.degrees;
+    return d[((bar % d.length) + d.length) % d.length];
+  }
+
+  /** Sección de la estructura que corresponde a un compás (si está activada). */
+  sectionAtBar(bar: number): Section | null {
+    if (!this.structureOn) return null;
+    let n = ((bar % STRUCTURE_BARS) + STRUCTURE_BARS) % STRUCTURE_BARS;
+    for (const s of SONG_STRUCTURE) {
+      if (n < s.bars) return s;
+      n -= s.bars;
+    }
+    return SONG_STRUCTURE[SONG_STRUCTURE.length - 1];
+  }
+
   private scheduleStep(absStep: number, time: number): void {
     const barStep = absStep % 16;
     const bar = Math.floor(absStep / 16);
-    const degree = this.progression.degrees[bar % this.progression.degrees.length];
-    const chord = this.chordMidis(degree);
+    const chord = this.chordMidis(this.degreeAtBar(bar));
     const stepDur = this.secondsPerStep();
     const barDur = stepDur * 16;
 
+    // Swing: retrasa las semicorcheas impares sin desviar la rejilla base.
+    const playTime = barStep % 2 === 1 ? time + this.swing * stepDur : time;
+
+    // Densidad y dinámica: de la estructura si está activa, o de los interruptores.
+    const section = this.sectionAtBar(bar);
+    const useBass = section ? section.bass : this.bassOn;
+    const useArp = section ? section.arp : this.arpOn;
+    const useDrums = section ? section.drums : this.drumsOn;
+    const level = section ? section.level : 1;
+
     // ACORDES: al inicio del compás, sostenidos todo el compás.
     if (barStep === 0) {
-      for (const m of chord) this.playChordTone(m, time, barDur * 0.98);
+      for (const m of chord) this.playChordTone(m, playTime, barDur * 0.98, undefined, false, level);
     }
 
     // BAJO: raíz del acorde dos octavas abajo, en los tiempos 1 y 3.
-    if (this.bassOn && (barStep === 0 || barStep === 8)) {
-      this.playBass(chord[0] - 24, time, stepDur * 7);
+    if (useBass && (barStep === 0 || barStep === 8)) {
+      this.playBass(chord[0] - 24, playTime, stepDur * 7, level);
     }
 
     // ARPEGIO: recorre las notas del acorde en corcheas.
-    if (this.arpOn && barStep % 2 === 0) {
+    if (useArp && barStep % 2 === 0) {
       const note = chord[(barStep / 2) % 3] + 12;
-      this.playChordTone(note, time, stepDur * 1.6, this.arpGain, true);
+      this.playChordTone(note, playTime, stepDur * 1.6, this.arpGain, true, level);
     }
 
     // BATERÍA sintética.
-    if (this.drumsOn) {
-      if (barStep === 0 || barStep === 8 || barStep === 10) this.playKick(time);
-      if (barStep === 4 || barStep === 12) this.playSnare(time);
-      if (barStep % 2 === 0) this.playHat(time, barStep % 4 === 0 ? 0.5 : 0.32);
+    if (useDrums) {
+      if (barStep === 0 || barStep === 8 || barStep === 10) this.playKick(playTime, level);
+      if (barStep === 4 || barStep === 12) this.playSnare(playTime, level);
+      if (barStep % 2 === 0) this.playHat(playTime, (barStep % 4 === 0 ? 0.5 : 0.32) * level);
     }
 
-    if (this.onStep) {
+    if (this.onStep && !this.offline) {
       const cb = this.onStep;
-      const delay = Math.max(0, (time - this.ctx.currentTime) * 1000);
+      const delay = Math.max(0, (playTime - this.ctx.currentTime) * 1000);
       window.setTimeout(() => cb(barStep, bar), delay);
     }
   }
 
+  /**
+   * Agenda de una sola vez `totalSteps` pasos a partir de `startTime`. Se usa para
+   * el render OFFLINE (exportar la canción a WAV), donde no hay reloj real.
+   */
+  renderSteps(totalSteps: number, startTime: number): void {
+    const stepDur = this.secondsPerStep();
+    for (let i = 0; i < totalSteps; i++) {
+      this.scheduleStep(i, startTime + i * stepDur);
+    }
+  }
+
   // ── Voces ────────────────────────────────────────────────────────────────────
-  private playChordTone(midi: number, time: number, dur: number, dest?: GainNode, forcePluck = false): void {
+  private playChordTone(midi: number, time: number, dur: number, dest?: GainNode, forcePluck = false, level = 1): void {
     const preset = INSTRUMENTS[this.instrument];
     const sustain = forcePluck ? false : preset.sustain;
     const freq = midiToFreq(midi);
@@ -238,7 +335,7 @@ export class SongEngine {
     filter.Q.value = 0.6;
     filter.connect(g).connect(dest ?? this.chordsGain);
 
-    const peak = 0.34;
+    const peak = 0.34 * Math.max(0.05, level);
     g.gain.setValueAtTime(0.0001, time);
     g.gain.exponentialRampToValueAtTime(peak, time + preset.attack);
     if (sustain) {
@@ -265,11 +362,14 @@ export class SongEngine {
       o.stop(stopAt);
       o.onended = () => o.disconnect();
     }
-    g.gain.setValueAtTime(g.gain.value, stopAt);
-    window.setTimeout(() => g.disconnect(), Math.max(0, (stopAt - this.ctx.currentTime) * 1000) + 60);
+    // En vivo se libera el nodo tras sonar; en render offline no hay reloj real
+    // (el contexto se descarta al terminar), así que no se programa nada.
+    if (!this.offline) {
+      window.setTimeout(() => g.disconnect(), Math.max(0, (stopAt - this.ctx.currentTime) * 1000) + 60);
+    }
   }
 
-  private playBass(midi: number, time: number, dur: number): void {
+  private playBass(midi: number, time: number, dur: number, level = 1): void {
     const freq = midiToFreq(midi);
     const g = this.ctx.createGain();
     const filter = this.ctx.createBiquadFilter();
@@ -277,7 +377,7 @@ export class SongEngine {
     filter.frequency.value = 700;
     filter.connect(g).connect(this.bassGain);
     g.gain.setValueAtTime(0.0001, time);
-    g.gain.exponentialRampToValueAtTime(0.5, time + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.5 * Math.max(0.05, level), time + 0.01);
     g.gain.exponentialRampToValueAtTime(0.0001, time + dur);
     const o = this.ctx.createOscillator();
     o.type = 'triangle';
@@ -293,20 +393,20 @@ export class SongEngine {
     o.onended = () => { o.disconnect(); o2.disconnect(); g.disconnect(); };
   }
 
-  private playKick(time: number): void {
+  private playKick(time: number, level = 1): void {
     const o = this.ctx.createOscillator();
     const g = this.ctx.createGain();
     o.type = 'sine';
     o.frequency.setValueAtTime(150, time);
     o.frequency.exponentialRampToValueAtTime(48, time + 0.12);
-    g.gain.setValueAtTime(0.9, time);
+    g.gain.setValueAtTime(0.9 * Math.max(0.05, level), time);
     g.gain.exponentialRampToValueAtTime(0.0001, time + 0.2);
     o.connect(g).connect(this.drumsGain);
     o.start(time); o.stop(time + 0.22);
     o.onended = () => { o.disconnect(); g.disconnect(); };
   }
 
-  private playSnare(time: number): void {
+  private playSnare(time: number, level = 1): void {
     const src = this.ctx.createBufferSource();
     src.buffer = this.noise;
     const bp = this.ctx.createBiquadFilter();
@@ -314,7 +414,7 @@ export class SongEngine {
     bp.frequency.value = 1800;
     bp.Q.value = 0.8;
     const g = this.ctx.createGain();
-    g.gain.setValueAtTime(0.6, time);
+    g.gain.setValueAtTime(0.6 * Math.max(0.05, level), time);
     g.gain.exponentialRampToValueAtTime(0.0001, time + 0.18);
     src.connect(bp).connect(g).connect(this.drumsGain);
     // Cuerpo tonal.
@@ -322,13 +422,27 @@ export class SongEngine {
     o.type = 'triangle';
     o.frequency.value = 180;
     const og = this.ctx.createGain();
-    og.gain.setValueAtTime(0.3, time);
+    og.gain.setValueAtTime(0.3 * Math.max(0.05, level), time);
     og.gain.exponentialRampToValueAtTime(0.0001, time + 0.1);
     o.connect(og).connect(this.drumsGain);
     src.start(time); src.stop(time + 0.2);
     o.start(time); o.stop(time + 0.12);
     src.onended = () => { src.disconnect(); bp.disconnect(); g.disconnect(); };
     o.onended = () => { o.disconnect(); og.disconnect(); };
+  }
+
+  /** Aplica de golpe un juego completo de parámetros (usado por el render). */
+  applyParams(p: SongParams): void {
+    this.setKey(p.key);
+    this.setScaleMinor(p.scaleMinor);
+    this.setTempo(p.tempo);
+    this.setProgression(p.progression);
+    this.setInstrument(p.instrument);
+    this.setBass(p.bass);
+    this.setArp(p.arp);
+    this.setDrums(p.drums);
+    this.setSwing(p.swing);
+    this.setStructure(p.structure);
   }
 
   private playHat(time: number, gain: number): void {
@@ -344,4 +458,47 @@ export class SongEngine {
     src.start(time); src.stop(time + 0.06);
     src.onended = () => { src.disconnect(); hp.disconnect(); g.disconnect(); };
   }
+}
+
+/** Juego completo de parámetros de una canción (para exportar/recrear). */
+export interface SongParams {
+  key: number;
+  scaleMinor: boolean;
+  tempo: number;
+  progression: string;
+  instrument: SongInstrument;
+  bass: boolean;
+  arp: boolean;
+  drums: boolean;
+  swing: number;
+  structure: boolean;
+}
+
+/**
+ * Renderiza la canción a un AudioBuffer con OfflineAudioContext (más rápido que
+ * en tiempo real), para exportarla a WAV. `bars` = compases a generar.
+ */
+export async function renderSongToBuffer(params: SongParams, bars: number): Promise<AudioBuffer> {
+  const sampleRate = 44100;
+  const stepDur = 60 / Math.max(60, Math.min(180, params.tempo)) / 4;
+  const totalSteps = Math.max(1, Math.round(bars)) * 16;
+  const lead = 0.05; // pequeño margen inicial
+  const tail = 2.5; // cola para que se apaguen los acordes/reverberación natural
+  const seconds = lead + totalSteps * stepDur + tail;
+
+  const ctx = new OfflineAudioContext(2, Math.ceil(sampleRate * seconds), sampleRate);
+  const song = new SongEngine(ctx);
+  song.applyParams(params);
+
+  // Limitador suave para que la suma de capas no sature al exportar.
+  const limiter = ctx.createDynamicsCompressor();
+  limiter.threshold.value = -3;
+  limiter.knee.value = 0;
+  limiter.ratio.value = 20;
+  limiter.attack.value = 0.003;
+  limiter.release.value = 0.1;
+  song.output.connect(limiter).connect(ctx.destination);
+
+  song.renderSteps(totalSteps, lead);
+  return ctx.startRendering();
 }
